@@ -1,25 +1,20 @@
 import React, { useEffect, useState, useCallback } from "react";
 import "./App.css";
+import { GameMenu, QuizGame, TrueFalseGame, PosterMatchGame } from "./QuizGames";
 
 /**
  * =====================
- * KollywoodQuizHub Main App
- * Features:
- * - Main container with navigation
- * - Light, clean, modern, responsive
- * - Authentication (Login/Register, no backend: uses localStorage)
- * - Quiz game engine powered by TMDb "Tamil/Kollywood" movies API
- * - Quiz UI & result/progress tracking
- * - Safe API call handling
+ * KollywoodQuizHub Main App (modular & multi-game)
+ * - Modular, responsive game selector & loader
+ * - Login/registration (mock)
+ * - MCQ, True/False, Poster Match games (powered by TMDb)
+ * - Progress/results for each session
+ * - Modern, light-themed, documented
  * =====================
  */
 
 // PUBLIC_INTERFACE
-/**
- * Fetches Tamil (Kollywood) movies from TMDb.
- * @param {number} [page=1] - Page number of TMDb results.
- * @returns {Promise<Object>} - TMDb result (movies).
- */
+/** Fetches Tamil (Kollywood) movies from TMDb API */
 async function fetchKollywoodMovies(page = 1) {
   const TMDB_API_KEY = "5bc67d3b06aecbd18121a3cbbc16eb59";
   const TMDB_SEARCH_URL =
@@ -35,57 +30,29 @@ async function fetchKollywoodMovies(page = 1) {
 }
 
 // =========== UTILS ===========
-/**
- * Mock "auth" and "user DB": Uses browser localStorage (replace with API in real use).
- */
+/** Mock "auth" with localStorage */
 const auth = {
-  /**
-   * Registers a new user.
-   * @param {string} username
-   * @param {string} password
-   */
   register(username, password) {
     const users = JSON.parse(localStorage.getItem("users") || "{}");
-    if (users[username]) {
-      throw new Error("Username already exists");
-    }
+    if (users[username]) throw new Error("Username already exists");
     users[username] = { password };
     localStorage.setItem("users", JSON.stringify(users));
     localStorage.setItem("kqh-session", username);
   },
-  /**
-   * Logs in user.
-   * @param {string} username
-   * @param {string} password
-   */
   login(username, password) {
     const users = JSON.parse(localStorage.getItem("users") || "{}");
     if (!users[username]) throw new Error("User not found");
-    if (users[username].password !== password)
-      throw new Error("Incorrect password");
+    if (users[username].password !== password) throw new Error("Incorrect password");
     localStorage.setItem("kqh-session", username);
   },
-  /**
-   * Logs out current user.
-   */
-  logout() {
-    localStorage.removeItem("kqh-session");
-  },
-  /**
-   * Checks if there's a logged-in user.
-   * @returns {string|null} - Username or null
-   */
-  getSession() {
-    return localStorage.getItem("kqh-session");
-  },
+  logout() { localStorage.removeItem("kqh-session"); },
+  getSession() { return localStorage.getItem("kqh-session"); },
 };
 // =========== END UTILS ===========
 
 // =========== UI COMPONENTS ===========
-
-/**
- * PUBLIC_INTERFACE
- * Main Navigation bar
+/** PUBLIC_INTERFACE
+ * Navigation bar for user/logout info
  * @param {{ user: string|null, onLogout: () => void }} props
  */
 function NavBar({ user, onLogout }) {
@@ -93,18 +60,14 @@ function NavBar({ user, onLogout }) {
     <nav className="navbar" style={{ background: "var(--primary-color,#f9fafa)", color: "var(--accent-color,#121211)" }}>
       <div className="container" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div className="logo" style={{ color: "#fc0388" }}>
-          <span className="logo-symbol" style={{ color: "#fc0388" }}>
-            🎬
-          </span>
+          <span className="logo-symbol" style={{ color: "#fc0388" }}>🎬</span>
           KollywoodQuizHub
         </div>
         <div>
           {user ? (
             <>
               <span style={{ marginRight: 16, fontWeight: 500 }}>{user}</span>
-              <button className="btn" style={{ background: "#fc0388", color: "#fff" }} onClick={onLogout}>
-                Logout
-              </button>
+              <button className="btn" style={{ background: "#fc0388", color: "#fff" }} onClick={onLogout}>Logout</button>
             </>
           ) : null}
         </div>
@@ -113,39 +76,27 @@ function NavBar({ user, onLogout }) {
   );
 }
 
-/**
- * PUBLIC_INTERFACE
+/** PUBLIC_INTERFACE
  * Login/Register Form
- * @param {{ mode: "login"|"register", onAuth: (user:string)=>void, onSwitch: ()=>void }} props
+ * @param {{ mode: "login"|"register", onAuth: (user:string)=>void, onSwitch: ()=>void }}
  */
 function AuthForm({ mode = "login", onAuth, onSwitch }) {
   const [form, setForm] = useState({ username: "", password: "" });
   const [error, setError] = useState(null);
 
-  // Handle input change
   function handleChange(e) {
     setForm({ ...form, [e.target.name]: e.target.value });
   }
-
-  // Handle form submit
   function handleSubmit(e) {
     e.preventDefault();
     setError(null);
     try {
-      if (!form.username || !form.password) {
-        throw new Error("Please fill all fields");
-      }
-      if (mode === "login") {
-        auth.login(form.username, form.password);
-      } else {
-        auth.register(form.username, form.password);
-      }
+      if (!form.username || !form.password) throw new Error("Please fill all fields");
+      if (mode === "login") { auth.login(form.username, form.password); }
+      else { auth.register(form.username, form.password); }
       onAuth(form.username);
-    } catch (err) {
-      setError(err.message);
-    }
+    } catch (err) { setError(err.message); }
   }
-
   return (
     <div className="auth-box" style={{
       background: "#ffffff",
@@ -201,18 +152,12 @@ function AuthForm({ mode = "login", onAuth, onSwitch }) {
         </button>
         <div style={{ fontSize: 15, marginTop: 8, color: "#808080", textAlign: "center" }}>
           {mode === "login" ? (
-            <>
-              New user?{" "}
-              <button type="button" style={{ color: "#fc0388", background: "none", border: "none", cursor: "pointer", padding: 0 }} onClick={onSwitch}>
-                Register
-              </button>
+            <>New user?{" "}
+              <button type="button" style={{ color: "#fc0388", background: "none", border: "none", cursor: "pointer", padding: 0 }} onClick={onSwitch}>Register</button>
             </>
           ) : (
-            <>
-              Have an account?{" "}
-              <button type="button" style={{ color: "#fc0388", background: "none", border: "none", cursor: "pointer", padding: 0 }} onClick={onSwitch}>
-                Login
-              </button>
+            <>Have an account?{" "}
+              <button type="button" style={{ color: "#fc0388", background: "none", border: "none", cursor: "pointer", padding: 0 }} onClick={onSwitch}>Login</button>
             </>
           )}
         </div>
@@ -222,166 +167,12 @@ function AuthForm({ mode = "login", onAuth, onSwitch }) {
   );
 }
 
-/**
- * PUBLIC_INTERFACE
- * Quiz Game Interface
- * @param {{
- *   movies: Array,
- *   onDone: (results: {score: number, total: number, answers: object[]})=>void
- * }} props
- */
-function QuizGame({ movies, onDone }) {
-  // Prepare quiz questions from movie data: random pick N questions
-  const [index, setIndex] = useState(0);
-  const [shuffled, setShuffled] = useState([]);
-  const [userAnswers, setUserAnswers] = useState([]); // {question, selected, isCorrect}
-  const [showQuestion, setShowQuestion] = useState(true);
-
-  // Prepare question objects on load
-  useEffect(() => {
-    // Shuffle and choose 10 movies for quiz
-    if (movies && movies.length > 0) {
-      let quizMovies = movies.slice();
-      for (let i = quizMovies.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [quizMovies[i], quizMovies[j]] = [quizMovies[j], quizMovies[i]];
-      }
-      quizMovies = quizMovies.slice(0, 10);
-      // Map to {movie, answerOptions}
-      const questionObjs = quizMovies.map(m => {
-        // Get 3 wrong options:
-        let allTitles = movies
-          .filter(mv => mv.id !== m.id)
-          .map(mv => mv.title)
-          .sort(() => Math.random() - 0.5)
-          .slice(0, 3);
-        // Add correct answer, shuffle:
-        let options = [...allTitles, m.title].sort(() => Math.random() - 0.5);
-        return { movie: m, options };
-      });
-      setShuffled(questionObjs);
-      setIndex(0);
-      setUserAnswers([]);
-      setShowQuestion(true);
-    }
-  }, [movies]);
-
-  // Handle answer selection
-  function selectAnswer(opt) {
-    if (!showQuestion) return;
-    const currQ = shuffled[index];
-    const isCorrect = opt === currQ.movie.title;
-    setUserAnswers([
-      ...userAnswers,
-      {
-        question: currQ.movie,
-        selected: opt,
-        isCorrect
-      }
-    ]);
-    setShowQuestion(false);
-    setTimeout(() => {
-      if (index + 1 >= shuffled.length) {
-        onDone({
-          score: [...userAnswers, { isCorrect }].filter(a => a.isCorrect).length,
-          total: shuffled.length,
-          answers: [...userAnswers, { question: currQ.movie, selected: opt, isCorrect }]
-        });
-      } else {
-        setIndex(index + 1);
-        setShowQuestion(true);
-      }
-    }, 900);
-  }
-
-  // Prevent empty state
-  if (!shuffled.length) {
-    return <div style={{ textAlign: "center", color: "#fc0388", marginTop: 62 }}>Preparing your quiz...</div>;
-  }
-
-  const curr = shuffled[index];
-
-  return (
-    <div
-      className="container"
-      style={{
-        maxWidth: 500,
-        background: "rgba(255,255,255,0.95)",
-        margin: "40px auto 16px",
-        borderRadius: 12,
-        padding: "28px 19px",
-        boxShadow: "0 2px 16px 0 rgba(252,3,136,0.12)",
-        color: "#121211"
-      }}>
-      <div style={{ marginBottom: 18, color: "#fc0388", fontWeight: 500 }}>
-        Question {index + 1} / {shuffled.length}
-      </div>
-      <div style={{ minHeight: 60, marginBottom: 24, color: "#121211", fontSize: 22, fontWeight: 600, textAlign: "center" }}>
-        {/* Movie Poster Guess, could make mode configurable */}
-        Which is the <span style={{ color: "#fc0388" }}>correct title</span> for
-        <br />
-        <img
-          src={`https://image.tmdb.org/t/p/w200/${curr.movie.poster_path}`}
-          alt="movie poster"
-          style={{ width: 120, borderRadius: 5, display: "block", margin: "13px auto" }}
-        />
-        <span style={{ fontSize: "17px", color: "#808080" }}>(Year: {curr.movie.release_date?.slice(0, 4) || "?"})</span>
-      </div>
-      <div style={{ margin: "0 0 24px 0", display: "flex", flexDirection: "column", gap: 13 }}>
-        {curr.options.map(opt => {
-          const lastAns = userAnswers[index];
-          let bg =
-            showQuestion
-              ? "#f9fafa"
-              : opt === curr.movie.title
-                ? "#b0fbde"
-                : lastAns && lastAns.selected === opt
-                  ? "#ffd8e4"
-                  : "#f9fafa";
-          return (
-            <button
-              key={opt}
-              disabled={!showQuestion}
-              onClick={() => selectAnswer(opt)}
-              style={{
-                background: bg,
-                border: "1.5px solid #fc03885c",
-                borderRadius: 5,
-                fontSize: 16,
-                fontWeight: 500,
-                padding: "10px 8px",
-                transition: "background 0.2s",
-                cursor: showQuestion ? "pointer" : "default",
-                color: "#121211",
-                outline: "none"
-              }}>
-              {opt}
-            </button>
-          );
-        })}
-      </div>
-      {!showQuestion && (
-        <div style={{ color: "#fc0388", fontWeight: 600, textAlign: "center", marginBottom: 5 }}>
-          {userAnswers.length === shuffled.length - 1
-            ? "Last question!"
-            : shuffled[index].options.find(opt => opt === curr.movie.title)
-              ? "Correct answer highlighted!"
-              : ""}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/**
- * PUBLIC_INTERFACE
- * Quiz Result Screen
- * @param {{
- *   result: {score: number, total: number, answers: object[]},
- *   onRestart: ()=>void
- * }} props
+/** PUBLIC_INTERFACE
+ * Quiz Result Screen (shown for ALL game types)
+ * @param {{ result: {score: number, total: number, answers: object[]}, onRestart: ()=>void }}
  */
 function QuizResult({ result, onRestart }) {
+  // Smartly render answers for MCQ or PosterMatch or TrueFalse
   return (
     <div className="container" style={{ maxWidth: 500, margin: "60px auto 16px", textAlign: "center" }}>
       <div style={{ fontSize: 30, color: "#fc0388", fontWeight: 700, marginBottom: 18 }}>Quiz Results!</div>
@@ -401,17 +192,35 @@ function QuizResult({ result, onRestart }) {
             borderRadius: 6,
             padding: "8px 11px"
           }}>
-            <img src={`https://image.tmdb.org/t/p/w92/${a.question.poster_path}`} alt="" style={{ width: 38, borderRadius: 4, marginRight: 8 }} />
+            {/* For MCQ/Poster: show poster; for TrueFalse-fake, show icon */}
+            {a.question && a.question.poster_path && (
+              <img src={`https://image.tmdb.org/t/p/w92/${a.question.poster_path}`} alt="" style={{ width: 38, borderRadius: 4, marginRight: 8 }} />
+            )}
+            {a.question && a.question.correct && a.selected && a.selected.poster_path && (
+              <img src={`https://image.tmdb.org/t/p/w92/${a.selected.poster_path}`} alt="" style={{ width: 38, borderRadius: 4, marginRight: 8 }} />
+            )}
+            {a.question && a.question.fakeTitle && (
+              <span style={{ width: 38, display: "inline-block", textAlign: "center", color: "#888", marginRight: 8 }}>?</span>
+            )}
             <div style={{ flex: 1, color: "#121211", textAlign: "left" }}>
-              <span style={{ fontWeight: 600 }}>{a.question.title}</span>
-              <span style={{ marginLeft: 5, color: "#fc0388" }}>
-                ({a.question.release_date?.slice(0, 4) || "?"})
+              <span style={{ fontWeight: 600 }}>
+                {/* MCQ/Poster: question.title; TrueFalse: real/fake title */}
+                {a.question
+                  ? a.question.title || a.question.correct?.title || a.question.fakeTitle || ""}
+                {a.question && a.question.release_date && (
+                  <span style={{ marginLeft: 5, color: "#fc0388" }}>({a.question.release_date?.slice(0, 4) || "?"})</span>
+                )}
               </span>
               <span style={{ marginLeft: 13, color: a.isCorrect ? "#01ad4a" : "#e12956", fontWeight: 500 }}>
                 {a.isCorrect ? "✅" : "❌"}
               </span>
               <div style={{ fontSize: 13, color: "#888" }}>
-                Your answer: <b>{a.selected}</b>
+                Your answer: <b>
+                  {a.selected && (typeof a.selected === "object")
+                    ? a.selected.title || a.selected.fakeTitle || "Poster"
+                    : a.selected
+                  }
+                </b>
               </div>
             </div>
           </div>
@@ -425,15 +234,12 @@ function QuizResult({ result, onRestart }) {
 }
 
 // =========== APP ENTRY ===========
-
-/**
- * PUBLIC_INTERFACE
- * Root App Component
+/** PUBLIC_INTERFACE
+ * Root App Component.
+ * Supports modular switching between game types: Multiple Choice, True/False, Poster Match.
  */
 function App() {
-  // Basic theme CSS custom properties (override existing theme)
   useEffect(() => {
-    // set theme variables dynamically (for color scheme per spec)
     const root = document.documentElement;
     root.style.setProperty("--primary-color", "#f9fafa");
     root.style.setProperty("--secondary-color", "#fc0388");
@@ -445,20 +251,20 @@ function App() {
   }, []);
 
   // -- State --
-  const [user, setUser] = useState(auth.getSession()); // username or null
-  const [authMode, setAuthMode] = useState("login"); // or "register"
-  const [screen, setScreen] = useState("loading"); // "loading"|"quiz"|"results"
-  const [movies, setMovies] = useState(null); // Array of movie objects
+  const [user, setUser] = useState(auth.getSession());
+  const [authMode, setAuthMode] = useState("login");
+  const [screen, setScreen] = useState("loading"); // "auth" | "menu" | "game" | "results"
+  const [movies, setMovies] = useState(null);
   const [apiError, setApiError] = useState(null);
-  const [quizResult, setQuizResult] = useState(null);
-
-  // -- Handlers --
+  const [selectedGame, setSelectedGame] = useState(null); // "mcq"|"truefalse"|"postermatch"|null
+  const [gameResult, setGameResult] = useState(null);
 
   // On mount: check session, fetch movies
   useEffect(() => {
     if (user) {
-      setScreen("quiz");
-      // Fetch movie data for quiz
+      setScreen("menu");
+      setSelectedGame(null);
+      setGameResult(null);
       setMovies(null);
       setApiError(null);
       fetchKollywoodMovies(1)
@@ -467,12 +273,10 @@ function App() {
           setMovies(
             data.results.filter((m) => m.poster_path && m.title && m.release_date && Number(m.vote_count) > 4)
           );
-          setScreen("quiz");
         })
         .catch((err) => {
           setApiError(err.message || "Could not load Kollywood movies");
           setMovies([]);
-          setScreen("quiz");
         });
     } else {
       setScreen("auth");
@@ -483,14 +287,28 @@ function App() {
   const handleAuth = useCallback((username) => {
     setUser(username);
     setAuthMode("login");
-    setQuizResult(null);
+    setGameResult(null);
+    setSelectedGame(null);
+    setScreen("menu");
   }, []);
 
-  // clear quiz state, refetch movies
-  function restartQuiz() {
-    setQuizResult(null);
+  function startGame(gameType) {
+    setSelectedGame(gameType);
+    setGameResult(null);
+    setScreen("game");
+  }
+  function restartMenu() {
+    setGameResult(null);
+    setSelectedGame(null);
+    setScreen("menu");
+  }
+  function handleGameDone(result) {
+    setGameResult(result);
+    setScreen("results");
+  }
+  function retryApi() {
+    setApiError(null);
     setMovies(null);
-    setScreen("quiz");
     fetchKollywoodMovies(1)
       .then((data) => {
         setMovies(
@@ -504,17 +322,16 @@ function App() {
   }
 
   // =========== RENDER ===========
-
   return (
     <div className="app" style={{ background: "#f9fafa", minHeight: "100vh", color: "#121211" }}>
       <NavBar user={user} onLogout={() => {
         auth.logout();
         setUser(null);
         setScreen("auth");
-        setQuizResult(null);
+        setGameResult(null);
         setMovies(null);
+        setSelectedGame(null);
       }} />
-      {/* Main Content */}
       <main style={{ marginTop: 82, flex: 1 }}>
         {screen === "auth" && (
           <AuthForm
@@ -524,7 +341,8 @@ function App() {
           />
         )}
 
-        {screen === "quiz" && user && (
+        {/* Game Menu */}
+        {screen === "menu" && user && (
           <>
             {!!apiError && (
               <div className="container" style={{
@@ -532,23 +350,62 @@ function App() {
                 borderRadius: 6, padding: 12, margin: "18px auto 0", maxWidth: 500, fontWeight: 500
               }}>
                 {apiError} <br />
-                <button className="btn" onClick={restartQuiz} style={{ background: "#fc0388", color: "#fff", marginTop: 8 }}>
+                <button className="btn" onClick={retryApi} style={{ background: "#fc0388", color: "#fff", marginTop: 8 }}>
                   Retry
                 </button>
               </div>
             )}
-
-            {!apiError && !quizResult && movies && (
-              <QuizGame movies={movies} onDone={(r) => {
-                setQuizResult(r);
-                setScreen("results");
-              }} />
+            {!apiError && (
+              <GameMenu onSelect={startGame} />
             )}
           </>
         )}
 
-        {screen === "results" && quizResult && (
-          <QuizResult result={quizResult} onRestart={restartQuiz} />
+        {/* Show selected game (if loaded) */}
+        {screen === "game" && user && selectedGame && (
+          <>
+            {!movies && (
+              <div className="container" style={{
+                color: "#fc0388",
+                background: "#f7e6fa",
+                borderRadius: 7,
+                padding: 18,
+                margin: "18px auto 0",
+                maxWidth: 440,
+                fontWeight: 500
+              }}>
+                Loading Kollywood movie data...
+              </div>
+            )}
+            {!!movies && !apiError && (
+              <>
+                {selectedGame === "mcq" && <QuizGame movies={movies} onDone={handleGameDone} />}
+                {selectedGame === "truefalse" && <TrueFalseGame movies={movies} onDone={handleGameDone} />}
+                {selectedGame === "postermatch" && <PosterMatchGame movies={movies} onDone={handleGameDone} />}
+              </>
+            )}
+          </>
+        )}
+
+        {/* Show game results with option to return to menu */}
+        {screen === "results" && user && selectedGame && gameResult && (
+          <div>
+            <QuizResult result={gameResult} onRestart={restartMenu} />
+            <div style={{ textAlign: "center", marginTop: 20 }}>
+              <button className="btn"
+                onClick={restartMenu}
+                style={{
+                  background: "#fff",
+                  color: "#fc0388",
+                  border: "1.5px solid #fc038899",
+                  marginRight: 8
+                }}>Back to Game Menu</button>
+              <button className="btn"
+                onClick={() => startGame(selectedGame)}
+                style={{ background: "#fc0388", color: "#fff" }}
+              >Play Again</button>
+            </div>
+          </div>
         )}
 
         {/* App Header/Blurb: Only if not logged in */}
