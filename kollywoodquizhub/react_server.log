@@ -11,9 +11,9 @@ asset bundle.js 1.45 MiB [emitted] (name: main)
 asset index.html 1.92 KiB [emitted]
 runtime modules 27.5 KiB 14 modules
 modules by path ./node_modules/ 1.24 MiB 31 modules
-modules by path ./src/ 57.5 KiB
+modules by path ./src/ 59.2 KiB
   modules by path ./src/*.css 8.54 KiB 4 modules
-  modules by path ./src/*.js 49 KiB
+  modules by path ./src/*.js 50.6 KiB
     ./src/index.js 659 bytes [built] [code generated]
     + 2 modules
 modules by path ./.ve/ 15.1 KiB
@@ -24,24 +24,84 @@ modules by path ./.ve/ 15.1 KiB
     ./.ve/EditorOverlay.css 2.25 KiB [built] [code generated]
     ./node_modules/css-loader/dist/cjs.js!./.ve/EditorOverlay.css 697 bytes [built] [code generated]
   ./.ve/EditorOverlay.jsx 1.58 KiB [built] [code generated]
-webpack 5.99.9 compiled successfully in 1291 ms
+webpack 5.99.9 compiled successfully in 1384 ms
 assets by status 1.92 KiB [cached] 1 asset
 assets by path *.js 1.48 MiB
   asset bundle.js 1.45 MiB [emitted] (name: main)
-  asset main.5d8b042c7fbf7a0cc379.hot-update.js 34.1 KiB [emitted] [immutable] [hmr] (name: main)
-asset main.5d8b042c7fbf7a0cc379.hot-update.json 28 bytes [emitted] [immutable] [hmr]
-Entrypoint main 1.48 MiB = bundle.js 1.45 MiB main.5d8b042c7fbf7a0cc379.hot-update.js 34.1 KiB
+  asset main.f01b5891c594d89e48ea.hot-update.js 30.4 KiB [emitted] [immutable] [hmr] (name: main)
+asset main.f01b5891c594d89e48ea.hot-update.json 28 bytes [emitted] [immutable] [hmr]
+Entrypoint main 1.48 MiB = bundle.js 1.45 MiB main.f01b5891c594d89e48ea.hot-update.js 30.4 KiB
 cached modules 1.29 MiB [cached] 42 modules
 runtime modules 27.5 KiB 14 modules
-./src/QuizGames.js 27.2 KiB [built] [code generated]
-webpack 5.99.9 compiled successfully in 244 ms
+./src/App.js 22.8 KiB [built] [code generated]
+webpack 5.99.9 compiled successfully in 199 ms
 assets by status 1.92 KiB [cached] 1 asset
 assets by path *.js 1.48 MiB
   asset bundle.js 1.45 MiB [emitted] (name: main)
-  asset main.0ff9b8b8b6b6696d763e.hot-update.js 34.2 KiB [emitted] [immutable] [hmr] (name: main)
-asset main.0ff9b8b8b6b6696d763e.hot-update.json 28 bytes [emitted] [immutable] [hmr]
-Entrypoint main 1.48 MiB = bundle.js 1.45 MiB main.0ff9b8b8b6b6696d763e.hot-update.js 34.2 KiB
+  asset main.77219cb0ded7b75f2774.hot-update.js 30.8 KiB [emitted] [immutable] [hmr] (name: main)
+asset main.77219cb0ded7b75f2774.hot-update.json 28 bytes [emitted] [immutable] [hmr]
+Entrypoint main 1.48 MiB = bundle.js 1.45 MiB main.77219cb0ded7b75f2774.hot-update.js 30.8 KiB
 cached modules 1.29 MiB [cached] 42 modules
 runtime modules 27.5 KiB 14 modules
-./src/QuizGames.js 27.3 KiB [built] [code generated]
-webpack 5.99.9 compiled successfully in 130 ms
+./src/App.js 23.3 KiB [built] [code generated]
+webpack 5.99.9 compiled successfully in 96 ms
+assets by status 1.92 KiB [cached] 1 asset
+assets by path *.js 1.48 MiB
+  asset bundle.js 1.45 MiB [emitted] (name: main)
+  asset main.b2ea827519f7b4f8d80c.hot-update.js 31.6 KiB [emitted] [immutable] [hmr] (name: main)
+asset main.b2ea827519f7b4f8d80c.hot-update.json 28 bytes [emitted] [immutable] [hmr]
+Entrypoint main 1.48 MiB = bundle.js 1.45 MiB main.b2ea827519f7b4f8d80c.hot-update.js 31.6 KiB
+cached modules 1.29 MiB [cached] 42 modules
+runtime modules 27.5 KiB 14 modules
+./src/App.js 24 KiB [built] [code generated]
+webpack 5.99.9 compiled successfully in 94 ms
+assets by status 1.92 KiB [cached] 1 asset
+assets by path *.js 1.48 MiB
+  asset bundle.js 1.45 MiB [emitted] (name: main)
+  asset main.dc0157b229192ac72456.hot-update.js 31.7 KiB [emitted] [immutable] [hmr] (name: main)
+asset main.dc0157b229192ac72456.hot-update.json 28 bytes [emitted] [immutable] [hmr]
+Entrypoint main 1.48 MiB = bundle.js 1.45 MiB main.dc0157b229192ac72456.hot-update.js 31.7 KiB
+cached modules 1.29 MiB [cached] 42 modules
+runtime modules 27.5 KiB 14 modules
+./src/App.js 24.1 KiB [built] [code generated]
+webpack 5.99.9 compiled successfully in 88 ms
+assets by status 1.92 KiB [cached] 1 asset
+assets by path *.js 1.49 MiB
+  asset bundle.js 1.45 MiB [emitted] (name: main)
+  asset main.a0702cb798772167f1d7.hot-update.js 34.5 KiB [emitted] [immutable] [hmr] (name: main)
+asset main.a0702cb798772167f1d7.hot-update.json 28 bytes [emitted] [immutable] [hmr]
+Entrypoint main 1.49 MiB = bundle.js 1.45 MiB main.a0702cb798772167f1d7.hot-update.js 34.5 KiB
+cached modules 1.29 MiB [cached] 42 modules
+runtime modules 27.5 KiB 14 modules
+./src/QuizGames.js 27.6 KiB [built] [code generated]
+webpack 5.99.9 compiled successfully in 115 ms
+assets by status 1.92 KiB [cached] 1 asset
+assets by path *.js 1.48 MiB
+  asset bundle.js 1.45 MiB [emitted] (name: main)
+  asset main.db01a1775d71519a1cbc.hot-update.js 34 KiB [emitted] [immutable] [hmr] (name: main)
+asset main.db01a1775d71519a1cbc.hot-update.json 28 bytes [emitted] [immutable] [hmr]
+Entrypoint main 1.48 MiB = bundle.js 1.45 MiB main.db01a1775d71519a1cbc.hot-update.js 34 KiB
+cached modules 1.29 MiB [cached] 42 modules
+runtime modules 27.5 KiB 14 modules
+./src/QuizGames.js 27.1 KiB [built] [code generated]
+webpack 5.99.9 compiled successfully in 98 ms
+assets by status 1.92 KiB [cached] 1 asset
+assets by path *.js 1.49 MiB
+  asset bundle.js 1.45 MiB [emitted] (name: main)
+  asset main.d8c29161654f6e85baab.hot-update.js 34.4 KiB [emitted] [immutable] [hmr] (name: main)
+asset main.d8c29161654f6e85baab.hot-update.json 28 bytes [emitted] [immutable] [hmr]
+Entrypoint main 1.49 MiB = bundle.js 1.45 MiB main.d8c29161654f6e85baab.hot-update.js 34.4 KiB
+cached modules 1.29 MiB [cached] 42 modules
+runtime modules 27.5 KiB 14 modules
+./src/QuizGames.js 27.5 KiB [built] [code generated]
+webpack 5.99.9 compiled successfully in 86 ms
+assets by status 1.92 KiB [cached] 1 asset
+assets by path *.js 1.49 MiB
+  asset bundle.js 1.45 MiB [emitted] (name: main)
+  asset main.c70f8c3ce9c24bd164c3.hot-update.js 34.8 KiB [emitted] [immutable] [hmr] (name: main)
+asset main.c70f8c3ce9c24bd164c3.hot-update.json 28 bytes [emitted] [immutable] [hmr]
+Entrypoint main 1.49 MiB = bundle.js 1.45 MiB main.c70f8c3ce9c24bd164c3.hot-update.js 34.8 KiB
+cached modules 1.29 MiB [cached] 42 modules
+runtime modules 27.5 KiB 14 modules
+./src/QuizGames.js 27.9 KiB [built] [code generated]
+webpack 5.99.9 compiled successfully in 84 ms

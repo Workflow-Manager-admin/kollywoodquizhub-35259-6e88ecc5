@@ -58,8 +58,17 @@ export function GameMenu({ onSelect }) {
  * QuizGame refactored for blurred poster guessing with clues and text input.
  * Props: { movies, onDone }
  */
-export function QuizGame({ movies, onDone }) {
-  // Prepare quiz questions from movie data: random pick N questions
+/**
+ * PUBLIC_INTERFACE
+ * QuizGame refactored for blurred poster guessing with clues and text input.
+ * Ensures only post-2010 Kollywood movies are presented with no repeat within the session.
+ * @param {object} props
+ * @param {Array} props.movies
+ * @param {function} props.onDone
+ * @param {Set} props.usedMovieIds
+ */
+export function QuizGame({ movies, onDone, usedMovieIds }) {
+  // Prepare quiz questions from movie data: random pick N questions (no repeats)
   const [index, setIndex] = useState(0);
   const [shuffled, setShuffled] = useState([]);
   const [userAnswers, setUserAnswers] = useState([]); // {question, selected, isCorrect}
@@ -74,42 +83,27 @@ export function QuizGame({ movies, onDone }) {
   // Prepare question objects on load (basic shuffle)
   useEffect(() => {
     if (movies && movies.length > 0) {
-      // --- MAKE QUIZ EASIER: Mainstream Kollywood filter:
-      // - popularity between 10 and 80 (more mainstream, but not blockbusters)
-      // - at least 30 votes (avoid obscure)
-      // - release year 2005-2021 (modern, but not new)
-      // - Exclude most obvious blockbusters ("Baahubali", "Kabali", etc.)
-      let quizMovies = movies.filter(m =>
-        Number(m.popularity) >= 10 &&
-        Number(m.popularity) <= 80 &&
-        Number(m.vote_count) >= 30 &&
-        m.release_date &&
-        Number(m.release_date.slice(0, 4)) >= 2005 &&
-        Number(m.release_date.slice(0, 4)) <= 2021 &&
-        m.title &&
-        !/baahubali|kabali|enthiran|2\.0|bigil|viswasam|sivaji/i.test(m.title)
-      );
-      // If not enough, loosen filter (just drop lower bound on popularity)
-      if (quizMovies.length < 8) {
-        quizMovies = movies.filter(m =>
-          Number(m.popularity) >= 3 &&
-          Number(m.vote_count) >= 12 &&
+      // --- NEW: Only allow movies released after 2010 with no repeats for this session
+      let quizMovies = movies.filter(
+        m =>
           m.release_date &&
-          Number(m.release_date.slice(0, 4)) >= 2002 &&
-          Number(m.release_date.slice(0, 4)) <= 2023 &&
-          m.title);
-      }
-      // If still not enough, take all movies as fallback (edge case)
-      if (quizMovies.length < 8) {
-        quizMovies = movies.slice();
-      }
-      // Shuffle and pick 10
+          Number(m.release_date.slice(0, 4)) > 2010 &&
+          !(
+            usedMovieIds &&
+            (usedMovieIds.has(m.id) || usedMovieIds.has(m.id + ""))
+          )
+      );
+      // Exclude most obvious blockbusters (for variety!)
+      quizMovies = quizMovies.filter(
+        m => m.title && !/baahubali|kabali|enthiran|2\.0|bigil|viswasam|sivaji/i.test(m.title)
+      );
+      // Shuffle
       for (let i = quizMovies.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [quizMovies[i], quizMovies[j]] = [quizMovies[j], quizMovies[i]];
       }
-      quizMovies = quizMovies.slice(0, 10);
-
+      // Pick up to 10 (or fewer, if not enough left)
+      quizMovies = quizMovies.slice(0, Math.min(10, quizMovies.length));
       setShuffled(quizMovies);
       setIndex(0);
       setUserAnswers([]);
@@ -120,7 +114,7 @@ export function QuizGame({ movies, onDone }) {
       setFeedbackText("");
       setReveal(false);
     }
-  }, [movies]);
+  }, [movies, usedMovieIds]);
 
   // Fetch the main actors (cast) for the current question
   useEffect(() => {
@@ -397,7 +391,11 @@ export function QuizGame({ movies, onDone }) {
 export const MCQGame = QuizGame;
 
 // 3. TrueFalseGame (no change needed)
-export function TrueFalseGame({ movies, onDone }) {
+/**
+ * PUBLIC_INTERFACE
+ * TrueFalseGame, updated to only use post-2010 movies and avoid session repeats.
+ */
+export function TrueFalseGame({ movies, onDone, usedMovieIds }) {
   const [index, setIndex] = useState(0);
   const [questions, setQuestions] = useState([]);
   const [userAnswers, setUserAnswers] = useState([]);
@@ -405,9 +403,19 @@ export function TrueFalseGame({ movies, onDone }) {
 
   useEffect(() => {
     if (movies && movies.length > 0) {
+      // Only movies post-2010, unused in this session
+      const availMovies = movies.filter(
+        m =>
+          m.release_date &&
+          Number(m.release_date.slice(0, 4)) > 2010 &&
+          !(
+            usedMovieIds &&
+            (usedMovieIds.has(m.id) || usedMovieIds.has(m.id + ""))
+          )
+      );
       // Generate 10 questions. Half are real, half are fake.
-      const shuffled = movies.slice().sort(() => Math.random() - 0.5);
-      const realQ = shuffled.slice(0, 5).map(m => ({
+      const shuffled = availMovies.slice().sort(() => Math.random() - 0.5);
+      const realQ = shuffled.slice(0, Math.min(5, shuffled.length)).map(m => ({
         isReal: true,
         text: `Is "${m.title}" a real Kollywood movie?`,
         movie: m,
@@ -415,10 +423,10 @@ export function TrueFalseGame({ movies, onDone }) {
       }));
       const adjectives = ["Mystic", "Shadow", "Golden", "Fierce", "Dream", "Majestic", "Enchanting"];
       const nouns = ["Heritage", "Saga", "Voyage", "Mirage", "Whisper", "Revenge", "Tango"];
-      const fakeQ = Array(5).fill(0).map((_, i) => {
+      const fakeQ = Array(realQ.length).fill(0).map((_, i) => {
         // Generate a title not found in movies
         let fake = adjectives[Math.floor(Math.random() * adjectives.length)] + " " + nouns[Math.floor(Math.random() * nouns.length)];
-        while (movies.find(m => m.title && m.title.toLowerCase() === fake.toLowerCase())) {
+        while (availMovies.find(m => m.title && m.title.toLowerCase() === fake.toLowerCase())) {
           fake = adjectives[Math.floor(Math.random() * adjectives.length)] + " " + nouns[Math.floor(Math.random() * nouns.length)];
         }
         return {
@@ -434,7 +442,7 @@ export function TrueFalseGame({ movies, onDone }) {
       setUserAnswers([]);
       setShowFeedback(false);
     }
-  }, [movies]);
+  }, [movies, usedMovieIds]);
 
   function selectAnswer(ans) {
     const curr = questions[index];
@@ -526,7 +534,11 @@ export function TrueFalseGame({ movies, onDone }) {
    Props: { movies, onDone }
 */
 // PUBLIC_INTERFACE
-export function PosterMatchGame({ movies, onDone }) {
+/**
+ * PUBLIC_INTERFACE
+ * PosterMatchGame (Reverse image MCQ, no repeats; uses movies post-2010 only)
+ */
+export function PosterMatchGame({ movies, onDone, usedMovieIds }) {
   const [index, setIndex] = useState(0);
   const [qdata, setQdata] = useState([]);
   const [userAnswers, setUserAnswers] = useState([]);
@@ -534,10 +546,20 @@ export function PosterMatchGame({ movies, onDone }) {
 
   useEffect(() => {
     if (movies && movies.length >= 4) {
-      const shuffled = movies.slice().sort(() => Math.random() - 0.5).slice(0, 10);
+      // Only movies post-2010 and unused in this session.
+      const availMovies = movies.filter(
+        m =>
+          m.release_date &&
+          Number(m.release_date.slice(0, 4)) > 2010 &&
+          !(
+            usedMovieIds &&
+            (usedMovieIds.has(m.id) || usedMovieIds.has(m.id + ""))
+          )
+      );
+      const shuffled = availMovies.slice().sort(() => Math.random() - 0.5).slice(0, Math.min(10, availMovies.length));
       const questions = shuffled.map(m => {
-        // 3 wrong posters + correct
-        const bad = movies.filter(mv => mv.id !== m.id && mv.poster_path)
+        // 3 wrong posters + correct (ensure not reused)
+        const bad = availMovies.filter(mv => mv.id !== m.id && mv.poster_path)
           .sort(() => Math.random() - 0.5)
           .slice(0, 3);
         let posterOptions = [...bad, m].sort(() => Math.random() - 0.5);
@@ -551,7 +573,7 @@ export function PosterMatchGame({ movies, onDone }) {
       setUserAnswers([]);
       setShowFeedback(null);
     }
-  }, [movies]);
+  }, [movies, usedMovieIds]);
 
   function selectPoster(opt) {
     const curr = qdata[index];

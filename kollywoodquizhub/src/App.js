@@ -15,23 +15,24 @@ import { GameMenu, QuizGame, TrueFalseGame, PosterMatchGame } from "./QuizGames"
 
 /** 
  * PUBLIC_INTERFACE
- * Fetches Tamil (Kollywood) movies from TMDb API, filtered for less mainstream/harder options
- * - Only returns movies with POPULARITY < 10 and RELEASE DATE before 2015 (harder/obscure)
+ * Fetches Tamil (Kollywood) movies from TMDb API, filtered for release_date > 2010
+ * - Only returns movies with release_date > 2010-01-01 (recent Kollywood)
  */
 async function fetchKollywoodMovies(page = 1) {
   const TMDB_API_KEY = "5bc67d3b06aecbd18121a3cbbc16eb59";
-  // 'sort_by=popularity.asc' gets least popular first
-  // 'release_date.lte=2014-12-31' restricts to movies released <= 2014
+  // 'release_date.gte=2011-01-01' restricts to movies released after 2010
+  // Retain with_original_language=ta for Kollywood (Tamil)
+  // Sort by popularity descending to get decent options
   // 'vote_count.gte=3' means filter out movies with too few votes (reduces junk data)
+  // We do not restrict popularity upper bound here—game mode logic will select further as needed.
   const TMDB_SEARCH_URL =
     `https://api.themoviedb.org/3/discover/movie` +
     `?api_key=${TMDB_API_KEY}` +
     `&language=en-US` +
     `&with_original_language=ta` +
-    `&sort_by=popularity.asc` +
+    `&sort_by=popularity.desc` +
     `&vote_count.gte=3` +
-    `&popularity.lte=10` +
-    `&release_date.lte=2014-12-31` +
+    `&release_date.gte=2011-01-01` +
     `&page=${page}`;
   const response = await fetch(TMDB_SEARCH_URL);
   if (!response.ok) {
@@ -280,8 +281,10 @@ function App() {
   const [apiError, setApiError] = useState(null);
   const [selectedGame, setSelectedGame] = useState(null); // "mcq"|"truefalse"|"postermatch"|null
   const [gameResult, setGameResult] = useState(null);
+  // --- Store a set of used movie IDs for this play session (no repeats within session) ---
+  const [usedMovieIds, setUsedMovieIds] = useState(new Set());
 
-  // On mount: check session, fetch movies
+  // On mount: check session, fetch movies (always get a fresh filtered list for this session)
   useEffect(() => {
     if (user) {
       setScreen("menu");
@@ -289,11 +292,16 @@ function App() {
       setGameResult(null);
       setMovies(null);
       setApiError(null);
+      setUsedMovieIds(new Set()); // Reset used IDs on new login/session
       fetchKollywoodMovies(1)
         .then((data) => {
           if (!data || !data.results || !data.results.length) throw new Error("No movie data found");
+          // Only keep poster_path, title, release_date, and decent votes
           setMovies(
-            data.results.filter((m) => m.poster_path && m.title && m.release_date && Number(m.vote_count) > 4)
+            data.results.filter((m) =>
+              m.poster_path && m.title && m.release_date && Number(m.vote_count) > 4 &&
+              Number(m.release_date.slice(0, 4)) > 2010 // Redundant but defensive
+            )
           );
         })
         .catch((err) => {
@@ -323,8 +331,23 @@ function App() {
     setGameResult(null);
     setSelectedGame(null);
     setScreen("menu");
+    // Do not reset usedMovieIds here—it persists through the session
   }
+  // Store the IDs of movies used in games for this session to prevent repeats.
   function handleGameDone(result) {
+    // Collect used IDs from answers
+    if (result && Array.isArray(result.answers)) {
+      const newUsed = new Set(usedMovieIds);
+      // For PosterMatchGame, question.correct; for MCQ/Text, question; for TrueFalse, question.movie
+      for (const a of result.answers) {
+        let id = null;
+        if (a.question && a.question.id) id = a.question.id;
+        else if (a.question && a.question.correct && a.question.correct.id) id = a.question.correct.id;
+        else if (a.question && a.question.movie && a.question.movie.id) id = a.question.movie.id;
+        if (id !== null) newUsed.add(id);
+      }
+      setUsedMovieIds(newUsed);
+    }
     setGameResult(result);
     setScreen("results");
   }
@@ -401,9 +424,9 @@ function App() {
             )}
             {!!movies && !apiError && (
               <>
-                {selectedGame === "mcq" && <QuizGame movies={movies} onDone={handleGameDone} />}
-                {selectedGame === "truefalse" && <TrueFalseGame movies={movies} onDone={handleGameDone} />}
-                {selectedGame === "postermatch" && <PosterMatchGame movies={movies} onDone={handleGameDone} />}
+                {selectedGame === "mcq" && <QuizGame movies={movies} onDone={handleGameDone} usedMovieIds={usedMovieIds} />}
+                {selectedGame === "truefalse" && <TrueFalseGame movies={movies} onDone={handleGameDone} usedMovieIds={usedMovieIds} />}
+                {selectedGame === "postermatch" && <PosterMatchGame movies={movies} onDone={handleGameDone} usedMovieIds={usedMovieIds} />}
               </>
             )}
           </>
