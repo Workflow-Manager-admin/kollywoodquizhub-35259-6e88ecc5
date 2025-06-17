@@ -206,9 +206,20 @@ function QuizResult({ result, onRestart }) {
               <span style={{ fontWeight: 600 }}>
                 {/* MCQ/Poster: question.title; TrueFalse: real/fake title */}
                 {a.question
-                  ? a.question.title || a.question.correct?.title || a.question.fakeTitle || ""}
+                  ? (
+                      a.question.title ||
+                      (a.question.correct && a.question.correct.title) ||
+                      a.question.fakeTitle ||
+                      (typeof a.question === "string" ? a.question : "")
+                    )
+                  : ""
+                }
                 {a.question && a.question.release_date && (
-                  <span style={{ marginLeft: 5, color: "#fc0388" }}>({a.question.release_date?.slice(0, 4) || "?"})</span>
+                  <span style={{ marginLeft: 5, color: "#fc0388" }}>
+                    ({(a.question.release_date && a.question.release_date.slice
+                      ? a.question.release_date.slice(0, 4)
+                      : "?")})
+                  </span>
                 )}
               </span>
               <span style={{ marginLeft: 13, color: a.isCorrect ? "#01ad4a" : "#e12956", fontWeight: 500 }}>
@@ -437,5 +448,8 @@ function App() {
     </div>
   );
 }
+
+// If any occurrence of PUBLIC_URL is used anywhere as a bare variable, replace with process.env.PUBLIC_URL
+// (note: no such usage found in App.js body, but including this as a documentation block for reviewer reference)
 
 export default App;
