@@ -400,51 +400,62 @@ export const TimelineGame = MovieTimelineGame;
  * @param {Set} props.usedMovieIds
  */
 export function MovieTimelineGame({ movies, onDone, usedMovieIds }) {
-  // --- CONFIG ---
+  // --- CONFIGURATION ---
   const MOVIE_COUNT = 4;      // Movies per round
   const ROUNDS_PER_SESSION = 5;
 
-  // State for all rounds
-  const [sessionRounds, setSessionRounds] = useState([]); // array of arrays of movies
-  const [currentRound, setCurrentRound] = useState(0); // which round is active
-  const [order, setOrder] = useState([]); // indices into currentRoundSet
+  // --- STATE ---
+  // sessionRounds: Array of rounds, each is array of MOVIE_COUNT movies (no repeats in session)
+  const [sessionRounds, setSessionRounds] = useState([]);
+  // currentRound: 0-based index of current round
+  const [currentRound, setCurrentRound] = useState(0);
+  // order: indices into round's movie array - user's current ordering
+  const [order, setOrder] = useState([]);
+  // submitted: whether user submitted for this round
   const [submitted, setSubmitted] = useState(false);
+  // isCorrect: array, true/false, for each position in user submission
   const [isCorrect, setIsCorrect] = useState([]);
+  // revealOrder: indices into movieSet (original round), but sorted chronological
   const [revealOrder, setRevealOrder] = useState([]);
+  // feedback: per-movie feedback array for round
   const [feedback, setFeedback] = useState([]);
-  const [sessionAnswers, setSessionAnswers] = useState([]); // {questionSet, userOrder, isCorrectArr}
-  const [initialPrep, setInitialPrep] = useState(false);
+  // For session summary: answers array, one per round, accumulating after each submit
+  const [sessionAnswers, setSessionAnswers] = useState([]);
+  // To prevent redundant prep/rehydration
+  const [initialized, setInitialized] = useState(false);
 
-  // For preparing the session's rounds with unique movies
+  // Initial session set-up: pick all rounds (with no repeat movies during session)
   useEffect(() => {
-    if (!movies || initialPrep) return;
-
-    // Prepare list of eligible movies (post-2010, poster, not used in session)
-    let avail = movies
-      .filter(m =>
+    if (!movies || !Array.isArray(movies) || initialized) return;
+    // Filter for eligible movies (post-2010, has poster and title, not used in session)
+    let avail = movies.filter(
+      m =>
         m.release_date &&
         Number(m.release_date.slice(0, 4)) > 2010 &&
-        m.poster_path && m.title &&
-        !(usedMovieIds && (usedMovieIds.has(m.id) || usedMovieIds.has(m.id + "")))
-      );
-
-    // If not enough movies for all rounds, limit rounds accordingly
+        m.poster_path &&
+        m.title &&
+        !(usedMovieIds && (usedMovieIds.has(m.id) || usedMovieIds.has(String(m.id))))
+    );
+    // Compute max possible rounds
     const maxRounds = Math.min(ROUNDS_PER_SESSION, Math.floor(avail.length / MOVIE_COUNT));
     if (maxRounds < 1) {
       setSessionRounds([]);
-      setInitialPrep(true);
+      setInitialized(true);
       return;
     }
-    // Shuffle all eligible movies
-    const shuffledAll = [...avail];
-    for (let i = shuffledAll.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffledAll[i], shuffledAll[j]] = [shuffledAll[j], shuffledAll[i]];
-    }
-
-    // Build N rounds, each with MOVIE_COUNT unique movies, no repeats across rounds
-    let rounds = [];
-    let pool = [...shuffledAll];
+    // Shuffle pool for fairness
+    const shuffle = arr => {
+      let copy = [...arr];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    };
+    avail = shuffle(avail);
+    // Partition into rounds: no repeat movies in session
+    const rounds = [];
+    let pool = [...avail];
     for (let r = 0; r < maxRounds; r++) {
       if (pool.length < MOVIE_COUNT) break;
       rounds.push(pool.slice(0, MOVIE_COUNT));
@@ -453,32 +464,29 @@ export function MovieTimelineGame({ movies, onDone, usedMovieIds }) {
     setSessionRounds(rounds);
     setCurrentRound(0);
     setSessionAnswers([]);
-    setInitialPrep(true);
-
-    // Set up first round's movie order (shuffled indices)
-    if (rounds.length && rounds[0]) {
+    setInitialized(true);
+    // Set up order for round 0
+    if (rounds[0]) {
       const indices = rounds[0].map((_, i) => i);
-      for (let i = indices.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [indices[i], indices[j]] = [indices[j], indices[i]];
-      }
-      setOrder(indices);
+      setOrder(shuffle(indices));
       setSubmitted(false);
       setIsCorrect([]);
       setRevealOrder([]);
       setFeedback([]);
     }
-  }, [movies, usedMovieIds, initialPrep]);
+  }, [movies, usedMovieIds, initialized]);
 
-  // Reset round movieOrder when the round advances
+  // Whenever the round number OR sessionRounds changes (new round): shuffle order array
   useEffect(() => {
     if (!sessionRounds.length || !sessionRounds[currentRound]) return;
     const indices = sessionRounds[currentRound].map((_, i) => i);
-    for (let i = indices.length - 1; i > 0; i--) {
+    // Shuffle for randomized initial order
+    let arr = [...indices];
+    for (let i = arr.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
-      [indices[i], indices[j]] = [indices[j], indices[i]];
+      [arr[i], arr[j]] = [arr[j], arr[i]];
     }
-    setOrder(indices);
+    setOrder(arr);
     setSubmitted(false);
     setIsCorrect([]);
     setRevealOrder([]);
@@ -486,21 +494,28 @@ export function MovieTimelineGame({ movies, onDone, usedMovieIds }) {
     // eslint-disable-next-line
   }, [currentRound, sessionRounds]);
 
-  // Drag-and-drop helpers
+  // --- MOVEMENT HELPERS ---
   function moveCard(from, to) {
     const newOrder = [...order];
     const [removed] = newOrder.splice(from, 1);
     newOrder.splice(to, 0, removed);
     setOrder(newOrder);
   }
-  // Up/Down
-  function moveUp(idx) { if (idx === 0) return; moveCard(idx, idx - 1); }
-  function moveDown(idx) { if (idx === order.length - 1) return; moveCard(idx, idx + 1); }
+  function moveUp(idx) {
+    if (idx === 0) return;
+    moveCard(idx, idx - 1);
+  }
+  function moveDown(idx) {
+    if (idx === order.length - 1) return;
+    moveCard(idx, idx + 1);
+  }
 
-  // On submit for current round
+  // --- HANDLE SUBMIT ---
   function handleSubmit() {
     const movieSet = sessionRounds[currentRound];
+    // User's arrangement
     const arranged = order.map(i => movieSet[i]);
+    // Correct order
     const sorted = [...movieSet].sort((a, b) => new Date(a.release_date) - new Date(b.release_date));
     const correctIds = sorted.map(m => m.id);
     const guessIds = arranged.map(m => m.id);
@@ -510,45 +525,27 @@ export function MovieTimelineGame({ movies, onDone, usedMovieIds }) {
     setFeedback(feedbackArr.map(right => right ? "✅ Correct" : "❌ Wrong place"));
     setSubmitted(true);
 
-    // Store this round's result in sessionAnswers
-    setTimeout(() => {
-      setSessionAnswers(ansArr => [
-        ...ansArr,
-        {
-          questionSet: movieSet,
-          userOrder: [...order],
-          isCorrectArr: [...feedbackArr],
-          arranged,
-          trueOrder: sorted,
-        },
-      ]);
-      // If last round, trigger session summary after a pause
-      if (currentRound + 1 >= sessionRounds.length) {
-        setTimeout(() => {
-          // Flatten answers for scoring
-          const all = [...sessionAnswers, {
-            questionSet: movieSet,
-            userOrder: [...order],
-            isCorrectArr: feedbackArr,
-            arranged,
-            trueOrder: sorted,
-          }];
-          // Aggregate: total correct, total questions, detail objects
-          const details = all.map((round, idx) => ({
-            round: idx + 1,
-            questionSet: round.questionSet,
-            userOrder: round.userOrder,
-            arranged: round.arranged,
-            trueOrder: round.trueOrder,
-            isCorrectArr: round.isCorrectArr,
-            correctCount: round.isCorrectArr.filter(Boolean).length,
-            total: round.questionSet.length,
-          }));
+    // Compute detail object for session summary
+    const answerObj = {
+      round: currentRound + 1,
+      questionSet: movieSet,
+      userOrder: [...order],
+      arranged,
+      trueOrder: sorted,
+      isCorrectArr: feedbackArr,
+      correctCount: feedbackArr.filter(Boolean).length,
+      total: movieSet.length,
+    };
 
+    // Delay feedback, then auto-advance or session end
+    setTimeout(() => {
+      setSessionAnswers(prev => [...prev, answerObj]);
+      if (currentRound + 1 >= sessionRounds.length) {
+        // End of session: summarize & return
+        setTimeout(() => {
+          const details = [...sessionAnswers, answerObj];
           const totalCorrect = details.reduce((s, d) => s + d.correctCount, 0);
           const total = details.reduce((s, d) => s + d.total, 0);
-
-          // Call parent with a detailed timeline challenge session result
           onDone &&
             onDone({
               score: totalCorrect,
@@ -556,18 +553,18 @@ export function MovieTimelineGame({ movies, onDone, usedMovieIds }) {
               answers: details,
               isTimelineSession: true
             });
-        }, 2400);
+        }, 2100); // short pause for summary
       } else {
-        // Go to next round after showing feedback
+        // Move to next round after short feedback delay
         setTimeout(() => {
           setCurrentRound(r => r + 1);
-        }, 1800);
+        }, 1300);
       }
-    }, 350); // Short delay: feedback appears, then session advances or summary
+    }, 400); // show feedback briefly before moving on
   }
 
-  // Defensive: loading/empty states
-  if (!initialPrep) {
+  // --- DEFENSIVE: loading/empty state ---
+  if (!initialized) {
     return (
       <div style={{ textAlign: "center", color: "#fc0388", marginTop: 62 }}>
         Preparing your Movie Timeline Challenge session...
@@ -582,12 +579,10 @@ export function MovieTimelineGame({ movies, onDone, usedMovieIds }) {
     );
   }
 
-  // --- Render: either a round OR session summary (which is handled by parent onDone/QuizResult) ---
-  // "Current" movieSet is sessionRounds[currentRound]
   const movieSet = sessionRounds[currentRound];
-  // Defensive for render (should not happen)
   if (!movieSet) return null;
 
+  // --- RENDER ---
   return (
     <div
       className="container"
@@ -602,9 +597,15 @@ export function MovieTimelineGame({ movies, onDone, usedMovieIds }) {
         textAlign: "center"
       }}
     >
-      <div style={{ color: "#2196f3", fontSize: 21, fontWeight: 700, marginBottom: 10 }}>
-        Timeline Challenge&nbsp;
-        <span style={{fontWeight:500, color:"#56565a", fontSize:"0.76em"}}>Round {currentRound + 1} / {sessionRounds.length}</span>
+      <div style={{
+        color: "#2196f3", fontSize: 21, fontWeight: 700, marginBottom: 10
+      }}>
+        Timeline Challenge{" "}
+        <span style={{
+          fontWeight: 500,
+          color: "#56565a",
+          fontSize: "0.76em"
+        }}>Round {currentRound + 1} / {sessionRounds.length}</span>
       </div>
       <div style={{ fontSize: 15, color: "#5a7a92", marginBottom: 17 }}>
         Arrange the movies from earliest (top) to latest (bottom), <br />
@@ -613,11 +614,10 @@ export function MovieTimelineGame({ movies, onDone, usedMovieIds }) {
       <div>
         {order.map((idx, i) => {
           const m = movieSet[idx];
-          // Determine card style for feedback on submit
           let borderC = submitted
             ? (isCorrect[i] ? "#32d183" : "#f9586c")
             : "#959fb1";
-          let borderW = submitted ? (isCorrect[i] ? 2.6 : 2.6) : 2.0;
+          let borderW = submitted ? 2.6 : 2.0;
           return (
             <div
               key={m.id}
@@ -669,16 +669,13 @@ export function MovieTimelineGame({ movies, onDone, usedMovieIds }) {
                 <div style={{ fontWeight: 600, fontSize: 17 }}>
                   {m.title}
                 </div>
-                {/* Release year intentionally hidden for challenge */}
               </div>
-              {/* Move Up/Down Buttons for accessibility & mobile */}
               {!submitted && (
                 <div style={{ display: "flex", flexDirection: "column", marginLeft: 9 }}>
                   <button onClick={() => moveUp(i)} style={{ background: "none", border: "none", color: "#fc0388", fontSize: "1.6em", cursor: i === 0 ? "not-allowed" : "pointer" }} disabled={i === 0}>↑</button>
                   <button onClick={() => moveDown(i)} style={{ background: "none", border: "none", color: "#fc0388", fontSize: "1.6em", cursor: i === order.length - 1 ? "not-allowed" : "pointer" }} disabled={i === order.length - 1}>↓</button>
                 </div>
               )}
-              {/* Show feedback on submit */}
               {submitted && (
                 <span style={{
                   fontWeight: 700,
@@ -706,7 +703,6 @@ export function MovieTimelineGame({ movies, onDone, usedMovieIds }) {
           </ol>
         </div>
       )}
-      {/* Submit */}
       <button
         className="btn btn-large"
         style={{
