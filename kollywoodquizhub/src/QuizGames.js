@@ -74,27 +74,35 @@ export function QuizGame({ movies, onDone }) {
   // Prepare question objects on load (basic shuffle)
   useEffect(() => {
     if (movies && movies.length > 0) {
-      // Heuristic to emphasize moderately-known Kollywood movies:
-      // - popularity between 3 and 10
-      // - more than 15 votes (to avoid noise)
-      // - release year 1990-2018 (not ancient, not too new)
-      // - Avoid most obvious blockbusters ("Baahubali", "Kabali", etc.)
+      // --- MAKE QUIZ EASIER: Mainstream Kollywood filter:
+      // - popularity between 10 and 80 (more mainstream, but not blockbusters)
+      // - at least 30 votes (avoid obscure)
+      // - release year 2005-2021 (modern, but not new)
+      // - Exclude most obvious blockbusters ("Baahubali", "Kabali", etc.)
       let quizMovies = movies.filter(m =>
-        Number(m.popularity) >= 3 &&
-        Number(m.popularity) <= 10 &&
-        Number(m.vote_count) > 15 &&
+        Number(m.popularity) >= 10 &&
+        Number(m.popularity) <= 80 &&
+        Number(m.vote_count) >= 30 &&
         m.release_date &&
-        Number(m.release_date.slice(0, 4)) >= 1990 &&
-        Number(m.release_date.slice(0, 4)) <= 2018 &&
+        Number(m.release_date.slice(0, 4)) >= 2005 &&
+        Number(m.release_date.slice(0, 4)) <= 2021 &&
         m.title &&
         !/baahubali|kabali|enthiran|2\.0|bigil|viswasam|sivaji/i.test(m.title)
       );
-
-      // If not enough, fall back to original provided movies
-      if (quizMovies.length < 10) {
+      // If not enough, loosen filter (just drop lower bound on popularity)
+      if (quizMovies.length < 8) {
+        quizMovies = movies.filter(m =>
+          Number(m.popularity) >= 3 &&
+          Number(m.vote_count) >= 12 &&
+          m.release_date &&
+          Number(m.release_date.slice(0, 4)) >= 2002 &&
+          Number(m.release_date.slice(0, 4)) <= 2023 &&
+          m.title);
+      }
+      // If still not enough, take all movies as fallback (edge case)
+      if (quizMovies.length < 8) {
         quizMovies = movies.slice();
       }
-
       // Shuffle and pick 10
       for (let i = quizMovies.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -193,7 +201,42 @@ export function QuizGame({ movies, onDone }) {
 
   // Handler for Reveal Answer button
   function handleReveal() {
+    // When user reveals, show answer and auto move to next after a short delay
+    if (!showQuestion || reveal) return;
     setReveal(true);
+    // Store answer as incorrect but mark user as having seen
+    const currMovie = shuffled[index];
+    setUserAnswers([
+      ...userAnswers,
+      {
+        question: currMovie,
+        selected: "", // empty since user did not submit anything
+        isCorrect: false,
+        revealed: true
+      }
+    ]);
+    setShowFeedback(false);
+    setShowQuestion(false);
+    setFeedbackText(`🎬 The answer was: ${currMovie.title}`);
+    setTimeout(() => {
+      if (index + 1 >= shuffled.length) {
+        onDone({
+          score: userAnswers.filter(a => a.isCorrect).length,
+          total: shuffled.length,
+          answers: [
+            ...userAnswers,
+            { question: currMovie, selected: "", isCorrect: false, revealed: true }
+          ]
+        });
+      } else {
+        setIndex(index + 1);
+        setShowFeedback(null);
+        setShowQuestion(true);
+        setInput("");
+        setFeedbackText("");
+        setReveal(false);
+      }
+    }, 1700);
   }
 
   if (!shuffled.length) {
@@ -201,6 +244,12 @@ export function QuizGame({ movies, onDone }) {
   }
 
   const curr = shuffled[index];
+
+  // Clue 2: Accurate release year (show always slice 0,4 if possible)
+  let releaseYear = "?";
+  if (curr && curr.release_date && /^\d{4}/.test(curr.release_date)) {
+    releaseYear = curr.release_date.slice(0, 4);
+  }
 
   return (
     <div
@@ -248,8 +297,7 @@ export function QuizGame({ movies, onDone }) {
         </div>
         <div style={{ fontSize: 17 }}>
           <b>Clue 2:</b>{" "}
-          {/* Always use the true release year from curr.release_date */}
-          <span style={{ color: "#858" }}>{curr.release_date && /^\d{4}/.test(curr.release_date) ? curr.release_date.slice(0, 4) : "?"}</span>
+          <span style={{ color: "#858" }}>{releaseYear}</span>
         </div>
       </div>
       <form
@@ -348,11 +396,7 @@ export function QuizGame({ movies, onDone }) {
 }
 export const MCQGame = QuizGame;
 
-/* 3. TrueFalseGame
-   Props: { movies, onDone({score, total, answers}) }
-   Quiz: Is this a real Kollywood movie? Sometimes shows a "fake" invented title.
-*/
-// PUBLIC_INTERFACE
+// 3. TrueFalseGame (no change needed)
 export function TrueFalseGame({ movies, onDone }) {
   const [index, setIndex] = useState(0);
   const [questions, setQuestions] = useState([]);
@@ -615,3 +659,9 @@ export function PosterMatchGame({ movies, onDone }) {
     </div>
   );
 }
+
+/*
+  If any occurrence of PUBLIC_URL is used anywhere as a bare variable, replace with process.env.PUBLIC_URL.
+  (Note: No such usage found in this file body, but reference check for maintainers.)
+*/
+// =========== END QuizGames.js ===========
