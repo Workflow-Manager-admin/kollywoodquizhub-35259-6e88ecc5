@@ -69,17 +69,39 @@ export function QuizGame({ movies, onDone }) {
   const [mainActors, setMainActors] = useState([]);
   const [feedbackText, setFeedbackText] = useState("");
   const [showQuestion, setShowQuestion] = useState(true);
+  const [reveal, setReveal] = useState(false); // For Reveal Answer button
 
   // Prepare question objects on load (basic shuffle)
   useEffect(() => {
-    // Shuffle and choose 10 movies for quiz
     if (movies && movies.length > 0) {
-      let quizMovies = movies.slice();
+      // Heuristic to emphasize moderately-known Kollywood movies:
+      // - popularity between 3 and 10
+      // - more than 15 votes (to avoid noise)
+      // - release year 1990-2018 (not ancient, not too new)
+      // - Avoid most obvious blockbusters ("Baahubali", "Kabali", etc.)
+      let quizMovies = movies.filter(m =>
+        Number(m.popularity) >= 3 &&
+        Number(m.popularity) <= 10 &&
+        Number(m.vote_count) > 15 &&
+        m.release_date &&
+        Number(m.release_date.slice(0, 4)) >= 1990 &&
+        Number(m.release_date.slice(0, 4)) <= 2018 &&
+        m.title &&
+        !/baahubali|kabali|enthiran|2\.0|bigil|viswasam|sivaji/i.test(m.title)
+      );
+
+      // If not enough, fall back to original provided movies
+      if (quizMovies.length < 10) {
+        quizMovies = movies.slice();
+      }
+
+      // Shuffle and pick 10
       for (let i = quizMovies.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [quizMovies[i], quizMovies[j]] = [quizMovies[j], quizMovies[i]];
       }
       quizMovies = quizMovies.slice(0, 10);
+
       setShuffled(quizMovies);
       setIndex(0);
       setUserAnswers([]);
@@ -88,6 +110,7 @@ export function QuizGame({ movies, onDone }) {
       setMainActors([]);
       setShowQuestion(true);
       setFeedbackText("");
+      setReveal(false);
     }
   }, [movies]);
 
@@ -103,7 +126,6 @@ export function QuizGame({ movies, onDone }) {
         if (!response.ok) throw new Error("Failed to fetch cast");
         const data = await response.json();
         if (data.cast && data.cast.length > 0) {
-          // Sort by order/importance and pick top 3.
           const sortedCast = [...data.cast].sort((a, b) => a.order - b.order);
           const topActors = sortedCast.slice(0, 3).map(c => c.name);
           setMainActors(topActors);
@@ -121,6 +143,7 @@ export function QuizGame({ movies, onDone }) {
       setShowFeedback(null);
       setShowQuestion(true);
       setFeedbackText("");
+      setReveal(false);
     }
   }, [shuffled, index]);
 
@@ -147,7 +170,6 @@ export function QuizGame({ movies, onDone }) {
     setFeedbackText(isCorrect ? "🎉 Correct!" : `❌ Not quite! The answer was: ${currMovie.title}`);
     setShowQuestion(false);
 
-    // Move to next after delay
     setTimeout(() => {
       if (index + 1 >= shuffled.length) {
         onDone({
@@ -164,8 +186,14 @@ export function QuizGame({ movies, onDone }) {
         setShowQuestion(true);
         setInput("");
         setFeedbackText("");
+        setReveal(false);
       }
     }, isCorrect ? 1100 : 2100);
+  }
+
+  // Handler for Reveal Answer button
+  function handleReveal() {
+    setReveal(true);
   }
 
   if (!shuffled.length) {
@@ -220,13 +248,14 @@ export function QuizGame({ movies, onDone }) {
         </div>
         <div style={{ fontSize: 17 }}>
           <b>Clue 2:</b>{" "}
-          <span style={{ color: "#858" }}>{curr.release_date?.slice(0, 4) || "?"}</span>
+          {/* Always use the true release year from curr.release_date */}
+          <span style={{ color: "#858" }}>{curr.release_date && /^\d{4}/.test(curr.release_date) ? curr.release_date.slice(0, 4) : "?"}</span>
         </div>
       </div>
       <form
         onSubmit={handleSubmit}
         style={{
-          margin: "0 0 19px 0",
+          margin: "0 0 8px 0",
           display: "flex",
           flexDirection: "column",
           gap: 8,
@@ -273,6 +302,35 @@ export function QuizGame({ movies, onDone }) {
         >
           Guess
         </button>
+        {/* Reveal Answer Button */}
+        <button
+          type="button"
+          className="btn"
+          style={{
+            marginTop: 3,
+            background: showQuestion ? "#dbdde6" : "#e5e7ee",
+            color: "#fc0388",
+            fontWeight: 540,
+            border: "1.5px solid #fc038899",
+            opacity: 1,
+            transition: ".2s border"
+          }}
+          onClick={handleReveal}
+          disabled={!showQuestion || reveal}
+        >
+          Reveal Answer
+        </button>
+        {reveal && showQuestion && (
+          <div style={{
+            marginTop: 7,
+            fontWeight: 600,
+            fontSize: 16,
+            color: "#e12956",
+            letterSpacing: "0.01em"
+          }}>
+            🎬 <span style={{ color: "#fc0388" }}>Answer:</span> {curr.title}
+          </div>
+        )}
       </form>
       {showFeedback !== null && (
         <div style={{
