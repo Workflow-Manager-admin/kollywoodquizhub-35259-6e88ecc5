@@ -1,15 +1,17 @@
 :root {
-  --base-light: #00ffff;
-  --base-dark: #00008b;
-  --text-color: #ffffff;
-  --text-secondary: rgba(255, 255, 255, 0.7);
-  --border-color: rgba(255, 255, 255, 0.1);
+  --primary-color: #f9fafa;
+  --secondary-color: #fc0388;
+  --accent-color: #121211;
+  --base-light: #f9fafa;
+  --base-dark: #f9fafa;
+  --text-color: #121211;
+  --border-color: #efefef;
 }
 
 body {
   margin: 0;
   font-family: 'Inter', 'Roboto', 'Helvetica', 'Arial', sans-serif;
-  background-color: var(--base-dark);
+  background-color: var(--primary-color);
   color: var(--text-color);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -19,32 +21,37 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  background: var(--primary-color);
 }
 
 .navbar {
-  background-color: var(--base-dark);
-  padding: 16px;
+  background-color: var(--primary-color);
+  color: var(--accent-color);
+  padding: 16px 0;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   border-bottom: 1px solid var(--border-color);
   position: fixed;
   top: 0;
   width: 100%;
   box-sizing: border-box;
   z-index: 100;
+  transition: background-color 0.16s;
 }
 
 .logo {
-  font-size: 1.25rem;
-  font-weight: 600;
+  font-size: 1.32rem;
+  font-weight: 700;
+  letter-spacing: -2px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  color: var(--secondary-color);
 }
-
 .logo-symbol {
-  color: var(--base-light);
+  font-size: 1.15em;
+  color: var(--secondary-color);
 }
 
 .container {
@@ -55,54 +62,85 @@ body {
   box-sizing: border-box;
 }
 
-.hero {
-  padding-top: 120px;
-  padding-bottom: 64px;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 24px;
-}
-
 .subtitle {
-  color: var(--base-light);
-  font-weight: 500;
-  font-size: 1.1rem;
+  color: var(--secondary-color);
+  font-weight: 642;
+  font-size: 1.18rem;
+  letter-spacing: 0.04em;
 }
 
 .title {
-  font-size: 3.5rem;
-  font-weight: 600;
-  line-height: 1.2;
-  margin: 0;
+  font-size: 2.6rem;
+  color: var(--accent-color);
+  font-weight: 700;
+  line-height: 1.15;
+  margin: 0 0 7px 0;
 }
 
 .description {
-  font-size: 1.1rem;
+  font-size: 1.15rem;
   line-height: 1.5;
-  color: var(--text-secondary);
+  color: #808080;
   max-width: 600px;
   margin-bottom: 16px;
 }
 
 .btn {
-  background-color: var(--base-light);
-  color: white;
+  background-color: var(--secondary-color);
+  color: #fff;
   border: none;
-  border-radius: 4px;
-  padding: 10px 20px;
+  border-radius: 5px;
+  padding: 10px 22px;
   font-size: 1rem;
-  font-weight: 500;
+  font-weight: 540;
+  box-shadow: 0 1px 0 0 #ffe3f1;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  outline: none;
+  margin-top: 0.25em;
+  margin-bottom: 0.15em;
+  transition: background 0.17s;
 }
-
-.btn:hover {
-  background-color: #7691ff;
-}
-
 .btn-large {
-  padding: 12px 24px;
-  font-size: 1.1rem;
+  padding: 13px 26px;
+  font-size: 1.13rem;
+}
+.btn:hover, .btn:focus {
+  background-color: #c6036e;
+}
+
+input[type="text"], input[type="password"] {
+  font-family: inherit;
+}
+
+.auth-box {
+  /* Styling applied in component */
+}
+
+@media (max-width: 600px) {
+  .container {
+    padding: 0 10px;
+  }
+  .navbar {
+    padding-left: 10px;
+    padding-right: 2px;
+  }
+  .auth-box {
+    padding: 22px 9px !important;
+  }
+}
+
+/* Hide footer on small quiz screens for focus */
+@media (max-width: 450px) {
+  footer {
+    font-size: 0.89rem !important;
+    padding: 8px !important;
+  }
+}
+/* Utilities */
+a {
+  color: #fc0388;
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
 }
