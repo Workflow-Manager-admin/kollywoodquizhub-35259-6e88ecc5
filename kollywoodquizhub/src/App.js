@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import "./App.css";
-import { GameMenu, QuizGame, TrueFalseGame, PosterMatchGame } from "./QuizGames";
+import { GameMenu, QuizGame, PosterMatchGame, TimelineGame } from "./QuizGames";
 
 /**
  * =====================
@@ -279,7 +279,7 @@ function App() {
   const [screen, setScreen] = useState("loading"); // "auth" | "menu" | "game" | "results"
   const [movies, setMovies] = useState(null);
   const [apiError, setApiError] = useState(null);
-  const [selectedGame, setSelectedGame] = useState(null); // "mcq"|"truefalse"|"postermatch"|null
+  const [selectedGame, setSelectedGame] = useState(null); // "mcq"|"timeline"|"postermatch"|null
   const [gameResult, setGameResult] = useState(null);
   // --- Store a set of used movie IDs for this play session (no repeats within session) ---
   const [usedMovieIds, setUsedMovieIds] = useState(new Set());
@@ -425,7 +425,7 @@ function App() {
             {!!movies && !apiError && (
               <>
                 {selectedGame === "mcq" && <QuizGame movies={movies} onDone={handleGameDone} usedMovieIds={usedMovieIds} />}
-                {selectedGame === "truefalse" && <TrueFalseGame movies={movies} onDone={handleGameDone} usedMovieIds={usedMovieIds} />}
+                {selectedGame === "timeline" && <TimelineGame movies={movies} onDone={handleGameDone} usedMovieIds={usedMovieIds} />}
                 {selectedGame === "postermatch" && <PosterMatchGame movies={movies} onDone={handleGameDone} usedMovieIds={usedMovieIds} />}
               </>
             )}
@@ -486,6 +486,10 @@ function App() {
 /* 
   If any occurrence of PUBLIC_URL is used anywhere as a bare variable, replace with process.env.PUBLIC_URL.
   (Note: no such usage found in this file or in App.js body, but adding this as a reference for maintainers.)
+*/
+
+/* Ensure there is NO accidental usage of PUBLIC_URL as a bare variable anywhere in this file.
+   If introducing code that needs the public URL, always use process.env.PUBLIC_URL instead of PUBLIC_URL.
 */
 
 export default App;

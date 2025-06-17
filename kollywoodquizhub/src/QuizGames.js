@@ -9,13 +9,11 @@ import React, { useEffect, useState } from "react";
  * All COMPONENTS in this file:
  * 1. GameMenu                  (game selector UI)
  * 2. MCQGame                   (Multiple Choice)
- * 3. TrueFalseGame             (True/False: ie: "Is this a real Kollywood movie?")
+ * 3. MovieTimelineGame         (Order movies by release date - Timeline challenge)
  * 4. PosterMatchGame           (Image-based: Match title to poster)
  */
 
-/* 1. GameMenu: Lets user select among available game types 
-   Props: { onSelect: (game) => void }
-*/
+// 1. GameMenu: Lets user select among available game types 
 // PUBLIC_INTERFACE
 export function GameMenu({ onSelect }) {
   return (
@@ -37,8 +35,8 @@ export function GameMenu({ onSelect }) {
         <button className="btn btn-large" style={{width: "85%",background: "#fc0388", color: "#fff"}} onClick={() => onSelect("mcq")}>
           🎬 Multiple Choice
         </button>
-        <button className="btn btn-large" style={{width: "85%",background: "#b7f8d8", color: "#121211"}} onClick={() => onSelect("truefalse")}>
-          ✅ True/False
+        <button className="btn btn-large" style={{width: "85%",background: "#cbeffd", color: "#121211"}} onClick={() => onSelect("timeline")}>
+          🕒 Movie Timeline Challenge
         </button>
         <button className="btn btn-large" style={{width: "85%",background: "#f5fdcf", color: "#121211"}} onClick={() => onSelect("postermatch")}>
           🖼️ Poster Match
@@ -389,141 +387,272 @@ export function QuizGame({ movies, onDone, usedMovieIds }) {
   );
 }
 export const MCQGame = QuizGame;
+export const TimelineGame = MovieTimelineGame;
 
-// 3. TrueFalseGame (no change needed)
+// 3. MovieTimelineGame (Arrange shuffled movies by release year)
 /**
  * PUBLIC_INTERFACE
- * TrueFalseGame, updated to only use post-2010 movies and avoid session repeats.
+ * MovieTimelineGame - Arrange a set of movies by release date (drag & drop or reorder buttons).
+ * @param {object} props
+ * @param {Array} props.movies
+ * @param {function} props.onDone
+ * @param {Set} props.usedMovieIds
  */
-export function TrueFalseGame({ movies, onDone, usedMovieIds }) {
-  const [index, setIndex] = useState(0);
-  const [questions, setQuestions] = useState([]);
-  const [userAnswers, setUserAnswers] = useState([]);
-  const [showFeedback, setShowFeedback] = useState(false);
+export function MovieTimelineGame({ movies, onDone, usedMovieIds }) {
+  // --- CONFIG ---
+  const MOVIE_COUNT = 4; // Adjustable 3-5 for replayability
+
+  // Prep: Pick N unique movies post-2010, not used this session
+  const [movieSet, setMovieSet] = useState([]);
+  const [order, setOrder] = useState([]); // array of indices into movieSet
+  const [submitted, setSubmitted] = useState(false);
+  const [isCorrect, setIsCorrect] = useState([]);
+  const [revealOrder, setRevealOrder] = useState([]); // for showing true timeline
+  const [feedback, setFeedback] = useState([]);
 
   useEffect(() => {
-    if (movies && movies.length > 0) {
-      // Only movies post-2010, unused in this session
-      const availMovies = movies.filter(
-        m =>
-          m.release_date &&
-          Number(m.release_date.slice(0, 4)) > 2010 &&
-          !(
-            usedMovieIds &&
-            (usedMovieIds.has(m.id) || usedMovieIds.has(m.id + ""))
-          )
+    // Build a random non-repeating set of movies
+    if (!movies) return;
+    let avail = movies
+      .filter(m =>
+        m.release_date &&
+        Number(m.release_date.slice(0, 4)) > 2010 &&
+        m.poster_path && m.title &&
+        !(usedMovieIds && (usedMovieIds.has(m.id) || usedMovieIds.has(m.id + "")))
       );
-      // Generate 10 questions. Half are real, half are fake.
-      const shuffled = availMovies.slice().sort(() => Math.random() - 0.5);
-      const realQ = shuffled.slice(0, Math.min(5, shuffled.length)).map(m => ({
-        isReal: true,
-        text: `Is "${m.title}" a real Kollywood movie?`,
-        movie: m,
-        fakeTitle: null
-      }));
-      const adjectives = ["Mystic", "Shadow", "Golden", "Fierce", "Dream", "Majestic", "Enchanting"];
-      const nouns = ["Heritage", "Saga", "Voyage", "Mirage", "Whisper", "Revenge", "Tango"];
-      const fakeQ = Array(realQ.length).fill(0).map((_, i) => {
-        // Generate a title not found in movies
-        let fake = adjectives[Math.floor(Math.random() * adjectives.length)] + " " + nouns[Math.floor(Math.random() * nouns.length)];
-        while (availMovies.find(m => m.title && m.title.toLowerCase() === fake.toLowerCase())) {
-          fake = adjectives[Math.floor(Math.random() * adjectives.length)] + " " + nouns[Math.floor(Math.random() * nouns.length)];
-        }
-        return {
-          isReal: false,
-          text: `Is "${fake}" a real Kollywood movie?`,
-          movie: null,
-          fakeTitle: fake
-        };
-      });
-      const merged = [...realQ, ...fakeQ].sort(() => Math.random() - 0.5).slice(0, 10);
-      setQuestions(merged);
-      setIndex(0);
-      setUserAnswers([]);
-      setShowFeedback(false);
+    if (avail.length < MOVIE_COUNT) {
+      setMovieSet([]);
+      setOrder([]);
+      return;
     }
+    // Pick N
+    const random = [];
+    const picked = new Set();
+    while (random.length < MOVIE_COUNT && avail.length > 0) {
+      const idx = Math.floor(Math.random() * avail.length);
+      if (!picked.has(avail[idx].id)) {
+        random.push(avail[idx]);
+        picked.add(avail[idx].id);
+      }
+      avail.splice(idx, 1);
+    }
+    // Shuffle for display order
+    const indices = random.map((_, i) => i);
+    for (let i = indices.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [indices[i], indices[j]] = [indices[j], indices[i]];
+    }
+    setMovieSet(random);
+    setOrder(indices);
+    setSubmitted(false);
+    setIsCorrect([]);
+    setRevealOrder([]);
+    setFeedback([]);
   }, [movies, usedMovieIds]);
 
-  function selectAnswer(ans) {
-    const curr = questions[index];
-    const correct = ans === (curr.isReal ? "yes" : "no");
-    setUserAnswers([...userAnswers, {
-      question: curr,
-      selected: ans,
-      isCorrect: correct
-    }]);
-    setShowFeedback(ans);
-    setTimeout(() => {
-      if (index + 1 >= questions.length) {
-        onDone({
-          score: [...userAnswers, { isCorrect: correct }].filter(a => a.isCorrect).length,
-          total: questions.length,
-          answers: [...userAnswers, { question: curr, selected: ans, isCorrect: correct }]
-        });
-      } else {
-        setIndex(index + 1);
-        setShowFeedback(false);
-      }
-    }, 700);
+  // Drag-and-drop helpers (pure sort operations)
+  function moveCard(from, to) {
+    const newOrder = [...order];
+    const [removed] = newOrder.splice(from, 1);
+    newOrder.splice(to, 0, removed);
+    setOrder(newOrder);
   }
 
-  if (!questions.length) return <div style={{textAlign:"center",color:"#fc0388",marginTop:62}}>Preparing your game...</div>;
+  // Button-based reordering (mobile safe)
+  function moveUp(idx) {
+    if (idx === 0) return;
+    moveCard(idx, idx - 1);
+  }
+  function moveDown(idx) {
+    if (idx === order.length - 1) return;
+    moveCard(idx, idx + 1);
+  }
 
-  const curr = questions[index];
+  // PUBLIC_INTERFACE
+  function handleSubmit() {
+    // Check ordering
+    const arranged = order.map(i => movieSet[i]);
+    const sorted = [...movieSet].sort(
+      (a, b) => new Date(a.release_date) - new Date(b.release_date)
+    );
+    const correctIds = sorted.map(m => m.id);
+    const guessIds = arranged.map(m => m.id);
+    const feedbackArr = arranged.map((m, idx) =>
+      m.id === correctIds[idx]
+    );
+    setIsCorrect(feedbackArr);
+    setRevealOrder(sorted.map(m => movieSet.findIndex(x => x.id === m.id)));
+    setFeedback(
+      feedbackArr.map(right =>
+        right ? "✅ Correct" : "❌ Wrong place")
+    );
+    setSubmitted(true);
+    // Submit one score event
+    setTimeout(() => {
+      onDone && onDone({
+        score: feedbackArr.filter(x => x).length,
+        total: arranged.length,
+        answers: arranged.map((movie, idx) => ({
+          question: movie,
+          selected: guessIds[idx],
+          isCorrect: feedbackArr[idx],
+          correctIndex: sorted.findIndex(x => x.id === movie.id)
+        }))
+      });
+    }, 2400); // Delay to show the reveal
+  }
+
+  if (!movieSet.length) {
+    return (
+      <div style={{ textAlign: "center", color: "#fc0388", marginTop: 62 }}>
+        Preparing your Movie Timeline challenge...
+      </div>
+    );
+  }
 
   return (
-    <div className="container"
+    <div
+      className="container"
       style={{
-        maxWidth: 500,
-        background: "#f7fff6",
-        margin: "40px auto 16px",
+        maxWidth: 540,
+        background: "#eafdff",
+        margin: "38px auto 16px",
         borderRadius: 12,
-        padding: "28px 19px",
-        boxShadow: "0 2px 16px 0 rgba(183,248,216,0.11)",
-        color: "#121211"
-      }}>
-      <div style={{marginBottom:18, color:"#31c77e", fontWeight:500}}>
-        True/False Question {index + 1} / {questions.length}
-      </div>
-      <div style={{
-        minHeight: 44,
-        marginBottom: 29,
+        padding: "31px 16px",
+        boxShadow: "0 2px 16px 0 rgba(76, 182, 255, 0.12)",
         color: "#121211",
-        fontSize: 21,
-        fontWeight: 600,
         textAlign: "center"
-      }}>
-        {curr.text}
-        {curr.isReal && curr.movie.poster_path && (
-          <div style={{marginTop:13}}>
-            <img src={`https://image.tmdb.org/t/p/w154/${curr.movie.poster_path}`} alt="" style={{width:70, borderRadius:4, boxShadow: "0 1px 6px 0 #ececec"}} />
-            <span style={{fontSize:"15px",color:"#808080",marginLeft:6}}>{curr.movie.release_date?.slice(0,4) || ""}</span>
-          </div>
-        )}
+      }}
+    >
+      <div style={{ color: "#2196f3", fontSize: 20, fontWeight: 700, marginBottom: 9 }}>
+        Arrange by Release Year
       </div>
-      <div style={{display:"flex",gap:30,justifyContent:"center",marginBottom:11}}>
-        <button
-          className="btn"
-          style={{background:"#09e078",color:"#fff",fontWeight:600,minWidth:90}}
-          disabled={!!showFeedback}
-          onClick={() => selectAnswer("yes")}
-        >Yes</button>
-        <button
-          className="btn"
-          style={{background:"#e11c70",color:"#fff",fontWeight:600,minWidth:90}}
-          disabled={!!showFeedback}
-          onClick={() => selectAnswer("no")}
-        >No</button>
+      <div style={{ fontSize: 15, color: "#5a7a92", marginBottom: 18 }}>
+        Drag and drop (or use ↓↑) to arrange the movies <br />
+        from earliest (top) to latest (bottom), then submit!
       </div>
-      {showFeedback && (
-        <div style={{
-          color: questions[index].isReal === (showFeedback==="yes") ? "#09e078" : "#e11c70",
+      <div>
+        {order.map((idx, i) => {
+          const m = movieSet[idx];
+          // Determine card style for feedback on submit
+          let borderC = submitted
+            ? (isCorrect[i] ? "#32d183" : "#f9586c")
+            : "#959fb1";
+          let borderW = submitted ? (isCorrect[i] ? 2.6 : 2.6) : 2.0;
+          return (
+            <div
+              key={m.id}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                background: "#fff",
+                boxShadow: "0 1px 10px 0 #b1e9ff0f",
+                border: `${borderW}px solid ${borderC}`,
+                borderRadius: 9,
+                margin: "9px 0",
+                padding: "6px 8px",
+                position: "relative",
+                maxWidth: 435,
+                marginLeft: "auto",
+                marginRight: "auto",
+                userSelect: "none"
+              }}
+              draggable={!submitted}
+              onDragStart={e => {
+                if (submitted) return;
+                e.dataTransfer.effectAllowed = "move";
+                e.dataTransfer.setData("text/plain", i);
+              }}
+              onDragOver={e => {
+                if (submitted) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+              }}
+              onDrop={e => {
+                if (submitted) return;
+                const from = parseInt(e.dataTransfer.getData("text/plain"));
+                moveCard(from, i);
+              }}
+            >
+              <img
+                src={`https://image.tmdb.org/t/p/w92/${m.poster_path}`}
+                alt={m.title}
+                style={{
+                  width: 54,
+                  height: 80,
+                  objectFit: "cover",
+                  borderRadius: 7,
+                  marginRight: 14,
+                  background: "#eee"
+                }}
+              />
+              <div style={{ flex: 1, textAlign: "left" }}>
+                <div style={{ fontWeight: 600, fontSize: 17 }}>
+                  {m.title}
+                </div>
+                <div style={{ fontSize: 14, color: "#227", marginTop: 1 }}>
+                  {m.release_date ? m.release_date.slice(0, 4) : "?"}
+                </div>
+              </div>
+              {/* Move Up/Down Buttons for accessibility & mobile */}
+              {!submitted && (
+                <div style={{ display: "flex", flexDirection: "column", marginLeft: 9 }}>
+                  <button onClick={() => moveUp(i)} style={{ background: "none", border: "none", color: "#fc0388", fontSize: "1.6em", cursor: i === 0 ? "not-allowed" : "pointer" }} disabled={i === 0}>↑</button>
+                  <button onClick={() => moveDown(i)} style={{ background: "none", border: "none", color: "#fc0388", fontSize: "1.6em", cursor: i === order.length - 1 ? "not-allowed" : "pointer" }} disabled={i === order.length - 1}>↓</button>
+                </div>
+              )}
+              {/* Show feedback on submit */}
+              {submitted && (
+                <span style={{
+                  fontWeight: 700,
+                  color: isCorrect[i] ? "#2bb97d" : "#f6455b",
+                  fontSize: 25,
+                  marginLeft: 12
+                }}>{isCorrect[i] ? "✔" : "✕"}</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {submitted && revealOrder.length === order.length && (
+        <div style={{ marginTop: 18, background: "#fff7df", borderRadius: 8, padding: 14, boxShadow: "0 2px 10px 0 #c7b87c1a" }}>
+          <b style={{ color: "#fc9003" }}>Correct Order:</b>
+          <ol style={{ margin: "9px auto 5px", paddingLeft: 19, color: "#644" }}>
+            {revealOrder.map(idx => {
+              const m = movieSet[idx];
+              return (
+                <li key={m.id} style={{ fontWeight: 600, margin: "4px 0" }}>
+                  {m.title} <span style={{ color: "#fc0388", fontWeight: 400, marginLeft: 7 }}>
+                    ({m.release_date ? m.release_date.slice(0, 4) : "?"})
+                  </span>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+      )}
+      {/* Submit */}
+      <button
+        className="btn btn-large"
+        style={{
+          background: "#2196f3",
+          color: "#fff",
           fontWeight: 600,
-          textAlign: "center",
-          marginTop: 3
-        }}>
-          {questions[index].isReal === (showFeedback==="yes")
-            ? "🎉 Correct!" : "❌ Wrong!"}
+          padding: "10px 25px",
+          margin: "17px 0 0 0",
+          fontSize: 18,
+          opacity: submitted ? 0.54 : 1
+        }}
+        disabled={submitted}
+        onClick={handleSubmit}
+      >
+        Submit
+      </button>
+      {submitted && (
+        <div style={{ marginTop: 14, color: "#56565a", fontSize: 15, fontWeight: 500 }}>
+          {isCorrect.every(x => x)
+            ? "🎉 All correct! You nailed the timeline! "
+            : "Some positions were incorrect. Study the correct order above."}
         </div>
       )}
     </div>

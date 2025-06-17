@@ -3,8 +3,9 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 
-// Replace PUBLIC_URL with process.env.PUBLIC_URL if used anywhere
-// (No such use in this file, but placeholder for safety.)
+/* Ensure there is NO accidental usage of PUBLIC_URL as a bare variable anywhere in this file.
+   If introducing code that needs the public URL, always use process.env.PUBLIC_URL instead of PUBLIC_URL.
+*/
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
