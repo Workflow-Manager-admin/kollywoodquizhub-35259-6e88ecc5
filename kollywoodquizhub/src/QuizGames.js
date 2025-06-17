@@ -590,9 +590,7 @@ export function MovieTimelineGame({ movies, onDone, usedMovieIds }) {
                 <div style={{ fontWeight: 600, fontSize: 17 }}>
                   {m.title}
                 </div>
-                <div style={{ fontSize: 14, color: "#227", marginTop: 1 }}>
-                  {m.release_date ? m.release_date.slice(0, 4) : "?"}
-                </div>
+                {/* Release year intentionally hidden to increase challenge */}
               </div>
               {/* Move Up/Down Buttons for accessibility & mobile */}
               {!submitted && (
@@ -622,9 +620,7 @@ export function MovieTimelineGame({ movies, onDone, usedMovieIds }) {
               const m = movieSet[idx];
               return (
                 <li key={m.id} style={{ fontWeight: 600, margin: "4px 0" }}>
-                  {m.title} <span style={{ color: "#fc0388", fontWeight: 400, marginLeft: 7 }}>
-                    ({m.release_date ? m.release_date.slice(0, 4) : "?"})
-                  </span>
+                  {m.title}
                 </li>
               );
             })}
