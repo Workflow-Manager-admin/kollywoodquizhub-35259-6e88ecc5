@@ -13,15 +13,26 @@ import { GameMenu, QuizGame, TrueFalseGame, PosterMatchGame } from "./QuizGames"
  * =====================
  */
 
-// PUBLIC_INTERFACE
-/** Fetches Tamil (Kollywood) movies from TMDb API */
+/** 
+ * PUBLIC_INTERFACE
+ * Fetches Tamil (Kollywood) movies from TMDb API, filtered for less mainstream/harder options
+ * - Only returns movies with POPULARITY < 10 and RELEASE DATE before 2015 (harder/obscure)
+ */
 async function fetchKollywoodMovies(page = 1) {
   const TMDB_API_KEY = "5bc67d3b06aecbd18121a3cbbc16eb59";
+  // 'sort_by=popularity.asc' gets least popular first
+  // 'release_date.lte=2014-12-31' restricts to movies released <= 2014
+  // 'vote_count.gte=3' means filter out movies with too few votes (reduces junk data)
   const TMDB_SEARCH_URL =
-    "https://api.themoviedb.org/3/discover/movie?api_key=" +
-    TMDB_API_KEY +
-    "&language=en-US&with_original_language=ta&sort_by=popularity.desc&page=" +
-    page;
+    `https://api.themoviedb.org/3/discover/movie` +
+    `?api_key=${TMDB_API_KEY}` +
+    `&language=en-US` +
+    `&with_original_language=ta` +
+    `&sort_by=popularity.asc` +
+    `&vote_count.gte=3` +
+    `&popularity.lte=10` +
+    `&release_date.lte=2014-12-31` +
+    `&page=${page}`;
   const response = await fetch(TMDB_SEARCH_URL);
   if (!response.ok) {
     throw new Error("Failed to fetch Kollywood movies from TMDb");
