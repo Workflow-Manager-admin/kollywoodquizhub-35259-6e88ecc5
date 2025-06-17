@@ -449,7 +449,9 @@ function App() {
   );
 }
 
-// If any occurrence of PUBLIC_URL is used anywhere as a bare variable, replace with process.env.PUBLIC_URL
-// (note: no such usage found in App.js body, but including this as a documentation block for reviewer reference)
+/* 
+  If any occurrence of PUBLIC_URL is used anywhere as a bare variable, replace with process.env.PUBLIC_URL.
+  (Note: no such usage found in this file or in App.js body, but adding this as a reference for maintainers.)
+*/
 
 export default App;

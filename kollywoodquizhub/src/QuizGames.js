@@ -53,15 +53,24 @@ export function GameMenu({ onSelect }) {
    Props: { movies, onDone }
    The same core "multiple choice" experience as in the App.js version.
 */
-// PUBLIC_INTERFACE
+/**
+ * PUBLIC_INTERFACE
+ * QuizGame refactored for blurred poster guessing with clues and text input.
+ * Props: { movies, onDone }
+ */
 export function QuizGame({ movies, onDone }) {
   // Prepare quiz questions from movie data: random pick N questions
   const [index, setIndex] = useState(0);
   const [shuffled, setShuffled] = useState([]);
   const [userAnswers, setUserAnswers] = useState([]); // {question, selected, isCorrect}
+  const [showFeedback, setShowFeedback] = useState(null); // null | true | false
+  const [input, setInput] = useState("");
+  const [loadingCast, setLoadingCast] = useState(false);
+  const [mainActors, setMainActors] = useState([]);
+  const [feedbackText, setFeedbackText] = useState("");
   const [showQuestion, setShowQuestion] = useState(true);
 
-  // Prepare question objects on load
+  // Prepare question objects on load (basic shuffle)
   useEffect(() => {
     // Shuffle and choose 10 movies for quiz
     if (movies && movies.length > 0) {
@@ -71,51 +80,92 @@ export function QuizGame({ movies, onDone }) {
         [quizMovies[i], quizMovies[j]] = [quizMovies[j], quizMovies[i]];
       }
       quizMovies = quizMovies.slice(0, 10);
-      // Map to {movie, answerOptions}
-      const questionObjs = quizMovies.map(m => {
-        // Get 3 wrong options:
-        let allTitles = movies
-          .filter(mv => mv.id !== m.id)
-          .map(mv => mv.title)
-          .sort(() => Math.random() - 0.5)
-          .slice(0, 3);
-        // Add correct answer, shuffle:
-        let options = [...allTitles, m.title].sort(() => Math.random() - 0.5);
-        return { movie: m, options };
-      });
-      setShuffled(questionObjs);
+      setShuffled(quizMovies);
       setIndex(0);
       setUserAnswers([]);
+      setInput("");
+      setShowFeedback(null);
+      setMainActors([]);
       setShowQuestion(true);
+      setFeedbackText("");
     }
   }, [movies]);
 
-  // Handle answer selection
-  function selectAnswer(opt) {
+  // Fetch the main actors (cast) for the current question
+  useEffect(() => {
+    async function fetchCast(movieId) {
+      if (!movieId) return [];
+      setLoadingCast(true);
+      try {
+        const TMDB_API_KEY = "5bc67d3b06aecbd18121a3cbbc16eb59";
+        const url = `https://api.themoviedb.org/3/movie/${movieId}/credits?api_key=${TMDB_API_KEY}&language=en-US`;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error("Failed to fetch cast");
+        const data = await response.json();
+        if (data.cast && data.cast.length > 0) {
+          // Sort by order/importance and pick top 3.
+          const sortedCast = [...data.cast].sort((a, b) => a.order - b.order);
+          const topActors = sortedCast.slice(0, 3).map(c => c.name);
+          setMainActors(topActors);
+        } else {
+          setMainActors([]);
+        }
+      } catch (e) {
+        setMainActors([]);
+      }
+      setLoadingCast(false);
+    }
+    if (shuffled.length > 0 && shuffled[index]) {
+      fetchCast(shuffled[index].id);
+      setInput("");   // Clear input for new question
+      setShowFeedback(null);
+      setShowQuestion(true);
+      setFeedbackText("");
+    }
+  }, [shuffled, index]);
+
+  // Validate user's answer (case-insensitive, trimmed)
+  function handleSubmit(e) {
+    e.preventDefault();
     if (!showQuestion) return;
-    const currQ = shuffled[index];
-    const isCorrect = opt === currQ.movie.title;
+    const currMovie = shuffled[index];
+    const userVal = input.trim().toLowerCase();
+    const actual = currMovie.title.trim().toLowerCase();
+    const isCorrect =
+      userVal === actual ||
+      // allow minor spacing/punctuation mismatch (remove non-alphanum and compare):
+      userVal.replace(/[^a-z0-9]/gi, "") === actual.replace(/[^a-z0-9]/gi, "");
     setUserAnswers([
       ...userAnswers,
       {
-        question: currQ.movie,
-        selected: opt,
-        isCorrect
+        question: currMovie,
+        selected: input,
+        isCorrect,
       }
     ]);
+    setShowFeedback(isCorrect ? true : false);
+    setFeedbackText(isCorrect ? "🎉 Correct!" : `❌ Not quite! The answer was: ${currMovie.title}`);
     setShowQuestion(false);
+
+    // Move to next after delay
     setTimeout(() => {
       if (index + 1 >= shuffled.length) {
         onDone({
           score: [...userAnswers, { isCorrect }].filter(a => a.isCorrect).length,
           total: shuffled.length,
-          answers: [...userAnswers, { question: currQ.movie, selected: opt, isCorrect }]
+          answers: [
+            ...userAnswers,
+            { question: currMovie, selected: input, isCorrect }
+          ]
         });
       } else {
         setIndex(index + 1);
+        setShowFeedback(null);
         setShowQuestion(true);
+        setInput("");
+        setFeedbackText("");
       }
-    }, 900);
+    }, isCorrect ? 1100 : 2100);
   }
 
   if (!shuffled.length) {
@@ -129,67 +179,110 @@ export function QuizGame({ movies, onDone }) {
       className="container"
       style={{
         maxWidth: 500,
-        background: "rgba(255,255,255,0.95)",
+        background: "rgba(255,255,255,0.97)",
         margin: "40px auto 16px",
         borderRadius: 12,
         padding: "28px 19px",
-        boxShadow: "0 2px 16px 0 rgba(252,3,136,0.12)",
+        boxShadow: "0 2px 16px 0 rgba(252,3,136,0.10)",
         color: "#121211"
-      }}>
+      }}
+    >
       <div style={{ marginBottom: 18, color: "#fc0388", fontWeight: 500 }}>
         Question {index + 1} / {shuffled.length}
       </div>
-      <div style={{ minHeight: 60, marginBottom: 24, color: "#121211", fontSize: 22, fontWeight: 600, textAlign: "center" }}>
-        {/* Movie Poster Guess, could make mode configurable */}
-        Which is the <span style={{ color: "#fc0388" }}>correct title</span> for
-        <br />
-        <img
-          src={`https://image.tmdb.org/t/p/w200/${curr.movie.poster_path}`}
-          alt="movie poster"
-          style={{ width: 120, borderRadius: 5, display: "block", margin: "13px auto" }}
+      <div style={{ minHeight: 60, marginBottom: 22, textAlign: "center" }}>
+        <div style={{ marginBottom: 9, fontSize: 21, fontWeight: 600 }}>
+          Guess the <span style={{ color: "#fc0388" }}>movie title</span>!
+        </div>
+        <div style={{ width: "100%", display: "flex", justifyContent: "center", marginBottom: 10 }}>
+          <img
+            src={`https://image.tmdb.org/t/p/w300/${curr.poster_path}`}
+            alt="movie poster"
+            style={{
+              width: 140,
+              height: 207,
+              borderRadius: 8,
+              display: "block",
+              filter: "blur(8px) brightness(0.96)",
+              objectFit: "cover",
+              boxShadow: "0 1px 8px 0 #fce6ef"
+            }}
+          />
+        </div>
+        <div style={{ margin: "8px 0 2px", fontSize: 17 }}>
+          <b>Clue 1:</b>{" "}
+          {loadingCast
+            ? <span style={{ color: "#b7afc9" }}>Loading actors…</span>
+            : (mainActors.length > 0
+              ? <span style={{ color: "#706c7f" }}>{mainActors.join(", ")}</span>
+              : <span style={{ color: "#b7afc9" }}>N/A</span>
+            )}
+        </div>
+        <div style={{ fontSize: 17 }}>
+          <b>Clue 2:</b>{" "}
+          <span style={{ color: "#858" }}>{curr.release_date?.slice(0, 4) || "?"}</span>
+        </div>
+      </div>
+      <form
+        onSubmit={handleSubmit}
+        style={{
+          margin: "0 0 19px 0",
+          display: "flex",
+          flexDirection: "column",
+          gap: 8,
+          alignItems: "center"
+        }}
+        autoComplete="off"
+      >
+        <input
+          type="text"
+          placeholder="Type the movie name"
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          disabled={!showQuestion}
+          autoFocus={true}
+          style={{
+            padding: "11px 12px",
+            fontSize: 17,
+            borderRadius: 6,
+            border: "1.5px solid #fc038899",
+            width: "98%",
+            marginBottom: 8,
+            outline: "none",
+            background: showQuestion ? "#fff" : "#f9fafa",
+            color: "#121211",
+            letterSpacing: "0.02em",
+            boxShadow: showFeedback === true
+              ? "0 1px 7px 0 #b0fbde"
+              : showFeedback === false
+                ? "0 1px 7px 0 #ffd8e4"
+                : undefined,
+            transition: "border 0.19s"
+          }}
         />
-        <span style={{ fontSize: "17px", color: "#808080" }}>(Year: {curr.movie.release_date?.slice(0, 4) || "?"})</span>
-      </div>
-      <div style={{ margin: "0 0 24px 0", display: "flex", flexDirection: "column", gap: 13 }}>
-        {curr.options.map(opt => {
-          const lastAns = userAnswers[index];
-          let bg =
-            showQuestion
-              ? "#f9fafa"
-              : opt === curr.movie.title
-                ? "#b0fbde"
-                : lastAns && lastAns.selected === opt
-                  ? "#ffd8e4"
-                  : "#f9fafa";
-          return (
-            <button
-              key={opt}
-              disabled={!showQuestion}
-              onClick={() => selectAnswer(opt)}
-              style={{
-                background: bg,
-                border: "1.5px solid #fc03885c",
-                borderRadius: 5,
-                fontSize: 16,
-                fontWeight: 500,
-                padding: "10px 8px",
-                transition: "background 0.2s",
-                cursor: showQuestion ? "pointer" : "default",
-                color: "#121211",
-                outline: "none"
-              }}>
-              {opt}
-            </button>
-          );
-        })}
-      </div>
-      {!showQuestion && (
-        <div style={{ color: "#fc0388", fontWeight: 600, textAlign: "center", marginBottom: 5 }}>
-          {userAnswers.length === shuffled.length - 1
-            ? "Last question!"
-            : shuffled[index].options.find(opt => opt === curr.movie.title)
-              ? "Correct answer highlighted!"
-              : ""}
+        <button
+          className="btn"
+          type="submit"
+          style={{
+            background: "#fc0388",
+            color: "#fff",
+            fontWeight: 570,
+            padding: "9px 24px"
+          }}
+          disabled={!showQuestion || !input.trim()}
+        >
+          Guess
+        </button>
+      </form>
+      {showFeedback !== null && (
+        <div style={{
+          color: showFeedback === true ? "#08ad66" : "#e12956",
+          fontWeight: 600,
+          textAlign: "center",
+          fontSize: 17,
+          margin: "8px 0 3px"
+        }}>
+          {feedbackText}
         </div>
       )}
     </div>

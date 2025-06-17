@@ -8,6 +8,11 @@
   --border-color: #efefef;
 }
 
+/*
+  If PUBLIC_URL is referenced in CSS using url(PUBLIC_URL...), replace with url(${process.env.PUBLIC_URL}...), 
+  but CSS does not support env substitution directly. No such usage found.
+*/
+
 body {
   margin: 0;
   font-family: 'Inter', 'Roboto', 'Helvetica', 'Arial', sans-serif;

@@ -3,6 +3,10 @@
   box-sizing: border-box;
 }
 
+/*
+  No usage of PUBLIC_URL found in index.css. CSS cannot use env vars directly.
+*/
+
 body {
   margin: 0;
   padding: 0;
