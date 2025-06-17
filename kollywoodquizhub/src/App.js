@@ -2,6 +2,14 @@ import React, { useEffect, useState, useCallback } from "react";
 import "./App.css";
 import { GameMenu, QuizGame, PosterMatchGame, TimelineGame } from "./QuizGames";
 
+/* Patch: Define PUBLIC_URL globally for template compatibility at top of App.js */
+if (typeof window !== 'undefined' && typeof window.PUBLIC_URL === 'undefined' && typeof process !== "undefined" && process.env && process.env.PUBLIC_URL) {
+  window.PUBLIC_URL = process.env.PUBLIC_URL;
+}
+if (typeof PUBLIC_URL === 'undefined' && typeof process !== "undefined" && process.env && process.env.PUBLIC_URL) {
+  var PUBLIC_URL = process.env.PUBLIC_URL;
+}
+
 /**
  * =====================
  * KollywoodQuizHub Main App (modular & multi-game)
@@ -228,9 +236,9 @@ function QuizResult({ result, onRestart }) {
                 }
                 {a.question && a.question.release_date && (
                   <span style={{ marginLeft: 5, color: "#fc0388" }}>
-                    ({(a.question.release_date && a.question.release_date.slice
+                    {(a.question.release_date && a.question.release_date.slice
                       ? a.question.release_date.slice(0, 4)
-                      : "?")})
+                      : "?")}
                   </span>
                 )}
               </span>

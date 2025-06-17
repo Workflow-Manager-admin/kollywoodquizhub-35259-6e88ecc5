@@ -747,13 +747,17 @@ export function MovieTimelineGame({ movies, onDone, usedMovieIds }) {
 /**
  * PUBLIC_INTERFACE
  * PosterMatchGame (Reverse image MCQ, no repeats; uses movies post-2010 only)
+ * Gives a main character's name as a clue using TMDb API credits (if available).
  */
 export function PosterMatchGame({ movies, onDone, usedMovieIds }) {
   const [index, setIndex] = useState(0);
   const [qdata, setQdata] = useState([]);
   const [userAnswers, setUserAnswers] = useState([]);
   const [showFeedback, setShowFeedback] = useState(null);
+  const [characterName, setCharacterName] = useState("");
+  const [loadingCharacter, setLoadingCharacter] = useState(false);
 
+  // Setup questions on load
   useEffect(() => {
     if (movies && movies.length >= 4) {
       // Only movies post-2010 and unused in this session.
@@ -785,6 +789,56 @@ export function PosterMatchGame({ movies, onDone, usedMovieIds }) {
     }
   }, [movies, usedMovieIds]);
 
+  // Fetch character name for current question when index or qdata changes
+  useEffect(() => {
+    async function fetchCharacterName(movieId) {
+      if (!movieId) {
+        setCharacterName("");
+        return;
+      }
+      setLoadingCharacter(true);
+      try {
+        const TMDB_API_KEY = "5bc67d3b06aecbd18121a3cbbc16eb59";
+        const url = `https://api.themoviedb.org/3/movie/${movieId}/credits?api_key=${TMDB_API_KEY}&language=en-US`;
+        const response = await fetch(url);
+        if (!response.ok) {
+          setCharacterName("");
+          setLoadingCharacter(false);
+          return;
+        }
+        const data = await response.json();
+        // Pick highest ordered/lead character with a name, fallback to N/A
+        if (data.cast && data.cast.length > 0) {
+          // Try to find someone with screen time > 1 or order <= 2
+          const sortedCast = [...data.cast].sort((a, b) => a.order - b.order);
+          // Try to filter for named main characters (not "Self", not empty, not "Hero"/"Heroine")
+          const goodChar = sortedCast.find(
+            c =>
+              c.character &&
+              !/^self$/i.test(c.character.trim()) &&
+              c.character.trim().length > 1 &&
+              !/^(hero|heroine|himself|herself|themselves)$/i.test(c.character.trim())
+          );
+          setCharacterName(
+            goodChar && goodChar.character
+              ? goodChar.character.trim()
+              : sortedCast[0]?.character?.trim() || "N/A"
+          );
+        } else {
+          setCharacterName("N/A");
+        }
+      } catch (e) {
+        setCharacterName("N/A");
+      }
+      setLoadingCharacter(false);
+    }
+    if (qdata.length && qdata[index] && qdata[index].correct) {
+      fetchCharacterName(qdata[index].correct.id);
+    } else {
+      setCharacterName("");
+    }
+  }, [index, qdata]);
+
   function selectPoster(opt) {
     const curr = qdata[index];
     const isCorrect = opt.id === curr.correct.id;
@@ -812,7 +866,13 @@ export function PosterMatchGame({ movies, onDone, usedMovieIds }) {
     }, 930);
   }
 
-  if (!qdata.length) return <div style={{ textAlign: "center", color: "#fc0388", marginTop: 62 }}>Loading your poster game...</div>;
+  if (!qdata.length)
+    return (
+      <div style={{ textAlign: "center", color: "#fc0388", marginTop: 62 }}>
+        Loading your poster game...
+      </div>
+    );
+
   const curr = qdata[index];
 
   return (
@@ -838,9 +898,21 @@ export function PosterMatchGame({ movies, onDone, usedMovieIds }) {
       }}>
         Which is the poster for: 
         <br />
-        <span style={{ color: "#e1c802", fontWeight: 700, fontSize: "1.1em" }}>{curr.correct.title}</span>
-        <div style={{fontSize: "15px", color:"#737161", marginTop:4}}>
-          (Year: {curr.correct.release_date?.slice(0,4) || "?"})
+        <span style={{ color: "#e1c802", fontWeight: 700, fontSize: "1.1em" }}>
+          {curr.correct.title}
+        </span>
+        <div style={{ fontSize: "15px", color: "#737161", marginTop: 4 }}>
+          (Year: {curr.correct.release_date?.slice(0, 4) || "?"})
+        </div>
+        <div style={{ fontSize: "15px", marginTop: 7 }}>
+          <b>Clue - Character name:</b>{" "}
+          {loadingCharacter ? (
+            <span style={{ color: "#b1ba24" }}>Loading character…</span>
+          ) : characterName && characterName !== "N/A" ? (
+            <span style={{ color: "#856f17" }}>{characterName}</span>
+          ) : (
+            <span style={{ color: "#b1ba24" }}>N/A</span>
+          )}
         </div>
       </div>
       <div style={{
@@ -896,4 +968,11 @@ export function PosterMatchGame({ movies, onDone, usedMovieIds }) {
   If any occurrence of PUBLIC_URL is used anywhere as a bare variable, replace with process.env.PUBLIC_URL.
   (Note: No such usage found in this file body, but reference check for maintainers.)
 */
+// Patch: define PUBLIC_URL globally for template compatibility
+if (typeof window !== 'undefined' && typeof window.PUBLIC_URL === 'undefined' && typeof process !== "undefined" && process.env && process.env.PUBLIC_URL) {
+  window.PUBLIC_URL = process.env.PUBLIC_URL;
+}
+if (typeof PUBLIC_URL === 'undefined' && typeof process !== "undefined" && process.env && process.env.PUBLIC_URL) {
+  var PUBLIC_URL = process.env.PUBLIC_URL;
+}
 // =========== END QuizGames.js ===========
